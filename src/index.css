@@ -1,0 +1,82 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Saans', 'Helvetica Neue', sans-serif;
+  --font-serif: 'Serrif VF', Georgia, serif;
+  --font-mono: 'Saans Mono', 'DM Mono', monospace;
+}
+
+:root {
+  /* Backgrounds */
+  --bg-page: #ffffff;
+  --bg-subtle: #F8FFFA;
+  --bg-row-hover: #f0faf4;
+
+  /* Text */
+  --text-primary: #09090b;
+  --text-secondary: #676c79;
+  --text-tertiary: #a5aab6;
+
+  /* Borders & Strokes */
+  --stroke-primary: #ecedef;
+  --stroke-green: #d4e8da;
+
+  /* Brand Colors */
+  --green-50: #f8fffb;
+  --green-100: #dfeae3;
+  --green-200: #CCFFE0;
+  --green-500: #008c44;
+  --green-600: #002910;
+  --near-black: #000d05;
+  --interaction: #00ff64;
+  --accent-label: #EEFF8C;
+
+  /* Spacing (base 4px) */
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px;
+  --space-6: 24px; --space-8: 32px; --space-12: 48px; --space-16: 64px;
+}
+
+body {
+  background-color: var(--bg-page);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  letter-spacing: -0.02em;
+}
+
+.mono-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+/* Sharp corners everywhere */
+* {
+  border-radius: 0 !important;
+}
+
+/* Custom Scrollbar for Notion feel */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--stroke-green);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--green-100);
+}
