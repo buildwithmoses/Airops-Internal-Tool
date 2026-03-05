@@ -1,20 +1,22 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { 
-  Calendar, 
-  List, 
-  Users, 
-  Settings as SettingsIcon, 
-  Plus, 
-  X, 
-  Check, 
-  ChevronRight, 
+import {
+  Calendar,
+  List,
+  Users,
+  Settings as SettingsIcon,
+  Plus,
+  X,
+  Check,
+  ChevronRight,
+  ChevronLeft,
   Search,
   Filter,
   MoreHorizontal,
   Clock,
   AlertCircle,
   CheckCircle2,
-  ArrowRight
+  ArrowRight,
+  LayoutGrid
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -57,21 +59,24 @@ const STANDARD_TASKS = [
 ];
 
 const INITIAL_SAS: SA[] = [
-  { name: "Alex Chen", activeProjects: 2, earlyStage: 1, midStage: 1, lateStage: 0, notes: "Focusing on enterprise accounts" },
-  { name: "Briana Torres", activeProjects: 4, earlyStage: 1, midStage: 2, lateStage: 1, notes: "" },
-  { name: "Carlos Mendes", activeProjects: 1, earlyStage: 0, midStage: 1, lateStage: 0, notes: "" },
-  { name: "Dana Kim", activeProjects: 5, earlyStage: 2, midStage: 2, lateStage: 1, notes: "High workload currently" },
-  { name: "Ethan Liu", activeProjects: 3, earlyStage: 1, midStage: 1, lateStage: 1, notes: "" },
-  { name: "Fiona Marsh", activeProjects: 2, earlyStage: 1, midStage: 0, lateStage: 1, notes: "" },
-  { name: "George Obi", activeProjects: 6, earlyStage: 2, midStage: 3, lateStage: 1, notes: "Requesting backup for next week" },
-  { name: "Hannah Patel", activeProjects: 2, earlyStage: 0, midStage: 2, lateStage: 0, notes: "" },
-  { name: "Isaac Reeves", activeProjects: 3, earlyStage: 1, midStage: 2, lateStage: 0, notes: "" },
-  { name: "Julia Sousa", activeProjects: 1, earlyStage: 1, midStage: 0, lateStage: 0, notes: "" },
-  { name: "Kevin Park", activeProjects: 4, earlyStage: 2, midStage: 1, lateStage: 1, notes: "" },
-  { name: "Laura Stein", activeProjects: 2, earlyStage: 0, midStage: 1, lateStage: 1, notes: "" },
-  { name: "Marcus Webb", activeProjects: 3, earlyStage: 1, midStage: 1, lateStage: 1, notes: "" },
-  { name: "Nina Johansson", activeProjects: 2, earlyStage: 1, midStage: 1, lateStage: 0, notes: "" },
-  { name: "Omar Fayed", activeProjects: 4, earlyStage: 1, midStage: 2, lateStage: 1, notes: "" },
+  { name: "Aaron Lit", activeProjects: 0, earlyStage: 0, midStage: 0, lateStage: 0, notes: "" },
+  { name: "AJ Diaz", activeProjects: 0, earlyStage: 0, midStage: 0, lateStage: 0, notes: "" },
+  { name: "Andreea Volzer", activeProjects: 0, earlyStage: 0, midStage: 0, lateStage: 0, notes: "" },
+  { name: "Anton O'Malley", activeProjects: 0, earlyStage: 0, midStage: 0, lateStage: 0, notes: "" },
+  { name: "Arnett Shen", activeProjects: 0, earlyStage: 0, midStage: 0, lateStage: 0, notes: "" },
+  { name: "Diana Shiling", activeProjects: 0, earlyStage: 0, midStage: 0, lateStage: 0, notes: "" },
+  { name: "Elmi Abdullahi", activeProjects: 0, earlyStage: 0, midStage: 0, lateStage: 0, notes: "" },
+  { name: "Henry Moses Jr", activeProjects: 0, earlyStage: 0, midStage: 0, lateStage: 0, notes: "" },
+  { name: "Henry Young", activeProjects: 0, earlyStage: 0, midStage: 0, lateStage: 0, notes: "" },
+  { name: "Jeremy Kao", activeProjects: 0, earlyStage: 0, midStage: 0, lateStage: 0, notes: "" },
+  { name: "Joel Fazecas", activeProjects: 0, earlyStage: 0, midStage: 0, lateStage: 0, notes: "" },
+  { name: "John Sellers", activeProjects: 0, earlyStage: 0, midStage: 0, lateStage: 0, notes: "" },
+  { name: "Melanie Dell'Olio", activeProjects: 0, earlyStage: 0, midStage: 0, lateStage: 0, notes: "" },
+  { name: "Palmer Jones", activeProjects: 0, earlyStage: 0, midStage: 0, lateStage: 0, notes: "" },
+  { name: "Richard Li", activeProjects: 0, earlyStage: 0, midStage: 0, lateStage: 0, notes: "" },
+  { name: "Shahbaz Mahmood", activeProjects: 0, earlyStage: 0, midStage: 0, lateStage: 0, notes: "" },
+  { name: "William Reed", activeProjects: 0, earlyStage: 0, midStage: 0, lateStage: 0, notes: "" },
+  { name: "Zoe Febrero", activeProjects: 0, earlyStage: 0, midStage: 0, lateStage: 0, notes: "" },
 ];
 
 const INITIAL_AES = ["Sarah Mitchell", "Jake Hoffman", "Priya Nair", "Tom Bellamy", "Celine Dupont"];
@@ -98,152 +103,31 @@ const getNextWeeks = () => {
   return weeks;
 };
 
-const SEED_KICKOFFS: Kickoff[] = [
-  {
-    id: '1',
-    customerName: 'Acme Corp',
-    aeName: 'Sarah Mitchell',
-    saName: 'Alex Chen',
-    week: getWeekString(new Date()),
-    status: 'IN PROGRESS',
-    tasks: [true, true, true, false, false, false, false],
-    notes: 'Initial discovery done. SA needs briefing.',
-    booked: true,
-    createdAt: Date.now() - 86400000 * 2
-  },
-  {
-    id: '2',
-    customerName: 'Globex',
-    aeName: 'Jake Hoffman',
-    saName: 'Dana Kim',
-    week: getWeekString(new Date()),
-    status: 'AT RISK',
-    tasks: [true, false, false, false, false, false, false],
-    notes: 'Customer attendance not confirmed yet.',
-    booked: true,
-    createdAt: Date.now() - 86400000 * 3
-  },
-  {
-    id: '3',
-    customerName: 'Soylent Corp',
-    aeName: 'Priya Nair',
-    saName: 'Ethan Liu',
-    week: getWeekString(new Date()),
-    status: 'COMPLETE',
-    tasks: [true, true, true, true, true, true, true],
-    notes: 'Ready for kickoff tomorrow.',
-    booked: true,
-    createdAt: Date.now() - 86400000 * 5
-  },
-  {
-    id: '4',
-    customerName: 'Initech',
-    aeName: 'Tom Bellamy',
-    saName: 'Briana Torres',
-    week: getWeekString(new Date(Date.now() + 86400000 * 7)),
-    status: 'NOT STARTED',
-    tasks: [false, false, false, false, false, false, false],
-    notes: '',
-    booked: true,
-    createdAt: Date.now() - 86400000 * 1
-  },
-  {
-    id: '5',
-    customerName: 'Umbrella Corp',
-    aeName: 'Celine Dupont',
-    saName: 'George Obi',
-    week: getWeekString(new Date(Date.now() + 86400000 * 7)),
-    status: 'IN PROGRESS',
-    tasks: [true, true, false, false, false, false, false],
-    notes: 'Agenda shared.',
-    booked: true,
-    createdAt: Date.now() - 86400000 * 4
-  },
-  {
-    id: '6',
-    customerName: 'Wayne Ent',
-    aeName: 'Sarah Mitchell',
-    saName: 'Hannah Patel',
-    week: getWeekString(new Date(Date.now() + 86400000 * 14)),
-    status: 'NOT STARTED',
-    tasks: [false, false, false, false, false, false, false],
-    notes: '',
-    booked: true,
-    createdAt: Date.now() - 86400000 * 2
-  },
-  {
-    id: '7',
-    customerName: 'Stark Ind',
-    aeName: 'Jake Hoffman',
-    saName: 'Kevin Park',
-    week: getWeekString(new Date(Date.now() + 86400000 * 14)),
-    status: 'IN PROGRESS',
-    tasks: [true, true, true, true, false, false, false],
-    notes: 'SA briefed.',
-    booked: true,
-    createdAt: Date.now() - 86400000 * 6
-  },
-  {
-    id: '8',
-    customerName: 'Hooli',
-    aeName: 'Priya Nair',
-    saName: 'Laura Stein',
-    week: getWeekString(new Date(Date.now() + 86400000 * 21)),
-    status: 'NOT STARTED',
-    tasks: [false, false, false, false, false, false, false],
-    notes: '',
-    booked: true,
-    createdAt: Date.now() - 86400000 * 1
-  },
-  {
-    id: '9',
-    customerName: 'Pied Piper',
-    aeName: 'Tom Bellamy',
-    saName: 'Marcus Webb',
-    week: getWeekString(new Date(Date.now() + 86400000 * 21)),
-    status: 'IN PROGRESS',
-    tasks: [true, false, false, false, false, false, false],
-    notes: 'Intro sent.',
-    booked: true,
-    createdAt: Date.now() - 86400000 * 3
-  },
-  {
-    id: '10',
-    customerName: 'Massive Dyn',
-    aeName: 'Celine Dupont',
-    saName: 'Nina Johansson',
-    week: getWeekString(new Date(Date.now() + 86400000 * 28)),
-    status: 'NOT STARTED',
-    tasks: [false, false, false, false, false, false, false],
-    notes: '',
-    booked: true,
-    createdAt: Date.now() - 86400000 * 2
-  },
-  {
-    id: '11',
-    customerName: 'Cyberdyne',
-    aeName: 'Sarah Mitchell',
-    saName: 'Omar Fayed',
-    week: getWeekString(new Date(Date.now() + 86400000 * 35)),
-    status: 'NOT STARTED',
-    tasks: [false, false, false, false, false, false, false],
-    notes: '',
-    booked: true,
-    createdAt: Date.now() - 86400000 * 4
-  },
-  {
-    id: '12',
-    customerName: 'Vandelay',
-    aeName: 'Jake Hoffman',
-    saName: 'Alex Chen',
-    week: getWeekString(new Date(Date.now() + 86400000 * 35)),
-    status: 'NOT STARTED',
-    tasks: [false, false, false, false, false, false, false],
-    notes: '',
-    booked: true,
-    createdAt: Date.now() - 86400000 * 5
-  }
-];
+const SEED_KICKOFFS: Kickoff[] = [];
+
+// Helper to get the Monday of an ISO week
+const getWeekStartDate = (weekStr: string): Date => {
+  const [yearStr, weekNumStr] = weekStr.split('-W');
+  const year = parseInt(yearStr);
+  const weekNum = parseInt(weekNumStr);
+  const jan4 = new Date(Date.UTC(year, 0, 4));
+  const dayOfWeek = jan4.getUTCDay() || 7;
+  const monday = new Date(jan4);
+  monday.setUTCDate(jan4.getUTCDate() - dayOfWeek + 1 + (weekNum - 1) * 7);
+  return monday;
+};
+
+// Get calendar grid for a given month
+const getCalendarDays = (year: number, month: number) => {
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0);
+  const startOffset = (firstDay.getDay() + 6) % 7; // Monday-based
+  const days: (Date | null)[] = [];
+  for (let i = 0; i < startOffset; i++) days.push(null);
+  for (let d = 1; d <= lastDay.getDate(); d++) days.push(new Date(year, month, d));
+  while (days.length % 7 !== 0) days.push(null);
+  return days;
+};
 
 // --- Components ---
 
@@ -364,6 +248,11 @@ export default function App() {
   const [selectedKickoffId, setSelectedKickoffId] = useState<string | null>(null);
   const [isBookingOpen, setIsBookingOpen] = useState(false);
   const [bookingWeek, setBookingWeek] = useState<string>('');
+  const [scheduleViewMode, setScheduleViewMode] = useState<'list' | 'calendar'>('list');
+  const [calendarMonth, setCalendarMonth] = useState(() => {
+    const now = new Date();
+    return { year: now.getFullYear(), month: now.getMonth() };
+  });
 
   // Filters for All Kickoffs view
   const [filterStatus, setFilterStatus] = useState<Status | 'ALL'>('ALL');
@@ -434,6 +323,11 @@ export default function App() {
 
   // --- Views ---
 
+  const calendarDays = useMemo(() => getCalendarDays(calendarMonth.year, calendarMonth.month), [calendarMonth]);
+
+  const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  const DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
   const WeeklyScheduleView = () => (
     <div className="space-y-8 animate-in fade-in duration-500">
       <div className="flex justify-between items-end">
@@ -441,79 +335,205 @@ export default function App() {
           <h1 className="text-4xl mb-1">Weekly Schedule</h1>
           <p className="text-[#676c79] text-sm">Manage kickoff volume and slot availability.</p>
         </div>
+        <div className="flex items-center gap-1 bg-[#F8FFFA] border border-[#d4e8da] p-1">
+          <button
+            onClick={() => setScheduleViewMode('list')}
+            className={`flex items-center gap-2 px-3 py-1.5 text-sm font-sans transition-colors ${scheduleViewMode === 'list' ? 'bg-white text-[#000d05] shadow-sm' : 'text-[#676c79] hover:text-[#000d05]'}`}
+          >
+            <List size={16} /> List
+          </button>
+          <button
+            onClick={() => setScheduleViewMode('calendar')}
+            className={`flex items-center gap-2 px-3 py-1.5 text-sm font-sans transition-colors ${scheduleViewMode === 'calendar' ? 'bg-white text-[#000d05] shadow-sm' : 'text-[#676c79] hover:text-[#000d05]'}`}
+          >
+            <LayoutGrid size={16} /> Calendar
+          </button>
+        </div>
       </div>
 
-      <div className="space-y-4">
-        {nextWeeks.map(week => {
-          const weekKickoffs = kickoffs.filter(k => k.week === week);
-          const slotsUsed = weekKickoffs.length;
-          
-          return (
-            <div key={week} className="border border-[#d4e8da] bg-white p-6 space-y-6">
-              <div className="flex justify-between items-center">
-                <div className="flex items-center gap-6">
-                  <div className="min-w-[120px]">
-                    <h3 className="text-lg font-sans font-medium text-[#09090b]">{week}</h3>
-                    <p className="mono-label text-[#676c79]">{slotsUsed} / {maxSlots} SLOTS</p>
-                  </div>
-                  <div className="w-48">
-                    <ProgressBar current={slotsUsed} total={maxSlots} />
-                  </div>
-                </div>
-                <button 
-                  onClick={() => {
-                    setBookingWeek(week);
-                    setIsBookingOpen(true);
-                  }}
-                  className="bg-[#00ff64] text-[#000d05] px-4 py-2 font-sans font-medium text-sm flex items-center gap-2 hover:opacity-90 transition-opacity"
-                >
-                  <Plus size={16} /> Book Slot
-                </button>
-              </div>
+      {scheduleViewMode === 'list' ? (
+        <div className="space-y-4">
+          {nextWeeks.map(week => {
+            const weekKickoffs = kickoffs.filter(k => k.week === week);
+            const slotsUsed = weekKickoffs.length;
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {weekKickoffs.map(k => (
-                  <div 
-                    key={k.id}
-                    onClick={() => setSelectedKickoffId(k.id)}
-                    className="border border-[#ecedef] p-4 hover:bg-[#f0faf4] cursor-pointer transition-colors group"
-                  >
-                    <div className="flex justify-between items-start mb-3">
-                      <div>
-                        <h4 className="font-sans font-bold text-sm">{k.customerName}</h4>
-                        <p className="text-xs text-[#676c79]">{k.aeName}</p>
-                      </div>
-                      <StatusBadge status={k.status} />
+            return (
+              <div key={week} className="border border-[#d4e8da] bg-white p-6 space-y-6">
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-6">
+                    <div className="min-w-[120px]">
+                      <h3 className="text-lg font-sans font-medium text-[#09090b]">{week}</h3>
+                      <p className="mono-label text-[#676c79]">{slotsUsed} / {maxSlots} SLOTS</p>
                     </div>
-                    <div className="flex items-center justify-between mt-auto">
-                      <span className="mono-label bg-[#CCFFE0] text-[#000d05] px-2 py-0.5">
-                        {k.saName}
-                      </span>
-                      <div className="flex items-center gap-2">
-                        <span className="mono-label text-[#676c79]">
-                          {k.tasks.filter(t => t).length}/7
+                    <div className="w-48">
+                      <ProgressBar current={slotsUsed} total={maxSlots} />
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setBookingWeek(week);
+                      setIsBookingOpen(true);
+                    }}
+                    className="bg-[#00ff64] text-[#000d05] px-4 py-2 font-sans font-medium text-sm flex items-center gap-2 hover:opacity-90 transition-opacity"
+                  >
+                    <Plus size={16} /> Book Slot
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {weekKickoffs.map(k => (
+                    <div
+                      key={k.id}
+                      onClick={() => setSelectedKickoffId(k.id)}
+                      className="border border-[#ecedef] p-4 hover:bg-[#f0faf4] cursor-pointer transition-colors group"
+                    >
+                      <div className="flex justify-between items-start mb-3">
+                        <div>
+                          <h4 className="font-sans font-bold text-sm">{k.customerName}</h4>
+                          <p className="text-xs text-[#676c79]">{k.aeName}</p>
+                        </div>
+                        <StatusBadge status={k.status} />
+                      </div>
+                      <div className="flex items-center justify-between mt-auto">
+                        <span className="mono-label bg-[#CCFFE0] text-[#000d05] px-2 py-0.5">
+                          {k.saName}
                         </span>
-                        <div className="w-12 h-1 bg-[#dfeae3]">
-                          <div 
-                            className="h-full bg-[#008c44]" 
-                            style={{ width: `${(k.tasks.filter(t => t).length / 7) * 100}%` }}
-                          />
+                        <div className="flex items-center gap-2">
+                          <span className="mono-label text-[#676c79]">
+                            {k.tasks.filter(t => t).length}/7
+                          </span>
+                          <div className="w-12 h-1 bg-[#dfeae3]">
+                            <div
+                              className="h-full bg-[#008c44]"
+                              style={{ width: `${(k.tasks.filter(t => t).length / 7) * 100}%` }}
+                            />
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                ))}
-                {weekKickoffs.length === 0 && (
-                  <div className="col-span-full py-8 border border-dashed border-[#d4e8da] flex flex-col items-center justify-center text-[#a5aab6]">
-                    <Calendar size={24} className="mb-2 opacity-50" />
-                    <p className="text-sm">No kickoffs booked for this week</p>
-                  </div>
-                )}
+                  ))}
+                  {weekKickoffs.length === 0 && (
+                    <div className="col-span-full py-8 border border-dashed border-[#d4e8da] flex flex-col items-center justify-center text-[#a5aab6]">
+                      <Calendar size={24} className="mb-2 opacity-50" />
+                      <p className="text-sm">No kickoffs booked for this week</p>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="border border-[#d4e8da] bg-white">
+          {/* Calendar header */}
+          <div className="flex items-center justify-between p-4 border-b border-[#d4e8da]">
+            <button
+              onClick={() => setCalendarMonth(prev => {
+                const newMonth = prev.month - 1;
+                return newMonth < 0
+                  ? { year: prev.year - 1, month: 11 }
+                  : { ...prev, month: newMonth };
+              })}
+              className="p-2 hover:bg-[#f0faf4] transition-colors text-[#676c79] hover:text-[#000d05]"
+            >
+              <ChevronLeft size={20} />
+            </button>
+            <h3 className="text-lg font-sans font-medium text-[#09090b]">
+              {MONTH_NAMES[calendarMonth.month]} {calendarMonth.year}
+            </h3>
+            <button
+              onClick={() => setCalendarMonth(prev => {
+                const newMonth = prev.month + 1;
+                return newMonth > 11
+                  ? { year: prev.year + 1, month: 0 }
+                  : { ...prev, month: newMonth };
+              })}
+              className="p-2 hover:bg-[#f0faf4] transition-colors text-[#676c79] hover:text-[#000d05]"
+            >
+              <ChevronRight size={20} />
+            </button>
+          </div>
+
+          {/* Day labels */}
+          <div className="grid grid-cols-7 border-b border-[#d4e8da]">
+            {DAY_NAMES.map(day => (
+              <div key={day} className="p-2 text-center mono-label text-[#676c79] text-xs">
+                {day}
+              </div>
+            ))}
+          </div>
+
+          {/* Calendar grid */}
+          <div className="grid grid-cols-7">
+            {calendarDays.map((day, idx) => {
+              const isToday = day && day.toDateString() === new Date().toDateString();
+              const dayWeek = day ? getWeekString(day) : '';
+              const dayKickoffs = day ? kickoffs.filter(k => k.week === dayWeek && day.getDay() === 1) : [];
+              // Show kickoffs on Mondays of their week, show dot indicators on other weekdays
+              const weekHasKickoffs = day ? kickoffs.filter(k => k.week === dayWeek).length : 0;
+              const isMonday = day && day.getDay() === 1;
+              const isWeekend = day && (day.getDay() === 0 || day.getDay() === 6);
+
+              return (
+                <div
+                  key={idx}
+                  className={`min-h-[110px] border-b border-r border-[#ecedef] p-2 transition-colors ${
+                    day ? (isWeekend ? 'bg-[#fafafa]' : 'hover:bg-[#f0faf4]') : 'bg-[#fafafa]'
+                  } ${isToday ? 'bg-[#f0faf4]' : ''}`}
+                  onClick={() => {
+                    if (day && !isWeekend) {
+                      setBookingWeek(dayWeek);
+                      setIsBookingOpen(true);
+                    }
+                  }}
+                >
+                  {day && (
+                    <>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className={`text-sm font-sans ${
+                          isToday
+                            ? 'bg-[#008c44] text-white w-6 h-6 flex items-center justify-center rounded-full font-bold'
+                            : isWeekend ? 'text-[#a5aab6]' : 'text-[#09090b]'
+                        }`}>
+                          {day.getDate()}
+                        </span>
+                        {isMonday && weekHasKickoffs > 0 && (
+                          <span className="mono-label text-[10px] text-[#676c79]">
+                            {weekHasKickoffs} kickoff{weekHasKickoffs !== 1 ? 's' : ''}
+                          </span>
+                        )}
+                      </div>
+                      {isMonday && dayKickoffs.map(k => (
+                        <div
+                          key={k.id}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedKickoffId(k.id);
+                          }}
+                          className="mb-1 px-1.5 py-0.5 text-[11px] truncate cursor-pointer rounded-sm border-l-2 border-[#008c44] bg-[#CCFFE0] text-[#000d05] hover:bg-[#b3f5d0] transition-colors"
+                        >
+                          {k.customerName}
+                        </div>
+                      ))}
+                      {!isMonday && !isWeekend && weekHasKickoffs > 0 && (
+                        <div className="flex gap-1 mt-1">
+                          {kickoffs.filter(k => k.week === dayWeek).slice(0, 3).map(k => {
+                            const dotColor = k.status === 'AT RISK' ? 'bg-[#856404]' : k.status === 'COMPLETE' ? 'bg-[#000d05]' : 'bg-[#008c44]';
+                            return <div key={k.id} className={`w-1.5 h-1.5 rounded-full ${dotColor}`} />;
+                          })}
+                          {kickoffs.filter(k => k.week === dayWeek).length > 3 && (
+                            <span className="text-[9px] text-[#676c79]">+{kickoffs.filter(k => k.week === dayWeek).length - 3}</span>
+                          )}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 
