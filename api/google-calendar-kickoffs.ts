@@ -92,32 +92,45 @@ export default async function handler(req: any, res: any) {
   }
 
   try {
-    // Search calendar for kickoff events in the next 8 weeks
+    // Search calendar for kickoff events from start of today through next 8 weeks
     const now = new Date();
+    const startOfToday = new Date(now);
+    startOfToday.setHours(0, 0, 0, 0);
     const future = new Date();
     future.setDate(future.getDate() + 56); // 8 weeks
 
-    const params = new URLSearchParams({
-      q: 'kickoff',
-      timeMin: now.toISOString(),
-      timeMax: future.toISOString(),
-      singleEvents: 'true',
-      orderBy: 'startTime',
-      maxResults: '100',
-    });
+    // Search for multiple kickoff-related terms
+    const searchTerms = ['kickoff', 'kick off', 'kick-off'];
+    const allEvents: any[] = [];
+    const seenIds = new Set<string>();
 
-    const calRes = await fetch(
-      `https://www.googleapis.com/calendar/v3/calendars/primary/events?${params}`,
-      { headers: { Authorization: `Bearer ${tokens.access_token}` } }
-    );
+    for (const term of searchTerms) {
+      const params = new URLSearchParams({
+        q: term,
+        timeMin: startOfToday.toISOString(),
+        timeMax: future.toISOString(),
+        singleEvents: 'true',
+        orderBy: 'startTime',
+        maxResults: '100',
+      });
 
-    if (!calRes.ok) {
-      const err = await calRes.json();
-      return sendJson(res, calRes.status, { error: 'calendar_error', details: err });
+      const calRes = await fetch(
+        `https://www.googleapis.com/calendar/v3/calendars/primary/events?${params}`,
+        { headers: { Authorization: `Bearer ${tokens.access_token}` } }
+      );
+
+      if (calRes.ok) {
+        const calData = await calRes.json();
+        for (const event of calData.items || []) {
+          if (!seenIds.has(event.id)) {
+            seenIds.add(event.id);
+            allEvents.push(event);
+          }
+        }
+      }
     }
 
-    const calData = await calRes.json();
-    const events = calData.items || [];
+    const events = allEvents;
 
     // Parse events into kickoff format
     const kickoffs = events.map((event: any) => {
