@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import {
   Calendar,
   List,
@@ -278,9 +278,21 @@ export default function App() {
       .catch(() => setAuthState('unauthenticated'));
   }, []);
 
-  // Fetch kickoffs from Google Calendar (only when authenticated)
+  // Load saved kickoffs from Redis, then merge calendar kickoffs
   useEffect(() => {
     if (authState !== 'authenticated') return;
+
+    // Load persisted kickoffs first
+    fetch('/api/kickoffs-list')
+      .then(res => res.json())
+      .then(json => {
+        if (json.kickoffs?.length > 0) {
+          setKickoffs(json.kickoffs);
+        }
+      })
+      .catch(() => {});
+
+    // Then merge Google Calendar kickoffs
     fetch('/api/google-calendar-kickoffs')
       .then(res => res.json())
       .then(json => {
@@ -302,15 +314,27 @@ export default function App() {
       .then(res => res.json())
       .then(json => {
         if (json.data && json.data.length > 0) {
-          setSas(json.data.map((sa: any) => ({
+          const saData = json.data.map((sa: any) => ({
             name: sa.name,
             activeProjects: sa.activeProjects,
             preActivation: sa.preActivation || 0,
             earlyStage: sa.earlyStage,
             midStage: sa.midStage,
             lateStage: sa.lateStage,
-            notes: sa.notes || '',
-          })));
+            notes: '',
+          }));
+          // Load persisted SA notes and merge
+          fetch('/api/sa-notes-list')
+            .then(r => r.json())
+            .then(notesJson => {
+              if (notesJson.notes) {
+                saData.forEach((sa: any) => {
+                  if (notesJson.notes[sa.name]) sa.notes = notesJson.notes[sa.name];
+                });
+              }
+              setSas(saData);
+            })
+            .catch(() => setSas(saData));
           setSaLoadingState('loaded');
         } else {
           setSaLoadingState('error');
@@ -349,26 +373,56 @@ export default function App() {
 
   const sasSortedByCapacity = [...sas].sort((a, b) => (a.preActivation + a.earlyStage) - (b.preActivation + b.earlyStage));
 
+  // Debounced SA notes save
+  const saNotesTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const saveSaNote = useCallback((saName: string, notes: string) => {
+    if (saNotesTimers.current[saName]) clearTimeout(saNotesTimers.current[saName]);
+    saNotesTimers.current[saName] = setTimeout(() => {
+      fetch('/api/sa-notes-save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ saName, notes }),
+      }).catch(() => {});
+    }, 800);
+  }, []);
+
+  const saveKickoffToRedis = (kickoff: Kickoff) => {
+    fetch('/api/kickoffs-save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(kickoff),
+    }).catch(() => {});
+  };
+
   const handleToggleTask = (kickoffId: string, taskIndex: number) => {
     setKickoffs(prev => prev.map(k => {
       if (k.id === kickoffId) {
         const newTasks = [...k.tasks];
         newTasks[taskIndex] = !newTasks[taskIndex];
-        
+
         // Auto-update status based on tasks
         let newStatus = k.status;
         const completedCount = newTasks.filter(t => t).length;
         if (completedCount === 7) newStatus = 'COMPLETE';
         else if (completedCount > 0 && k.status === 'NOT STARTED') newStatus = 'IN PROGRESS';
-        
-        return { ...k, tasks: newTasks, status: newStatus };
+
+        const updated = { ...k, tasks: newTasks, status: newStatus };
+        saveKickoffToRedis(updated);
+        return updated;
       }
       return k;
     }));
   };
 
   const handleUpdateKickoff = (kickoffId: string, updates: Partial<Kickoff>) => {
-    setKickoffs(prev => prev.map(k => k.id === kickoffId ? { ...k, ...updates } : k));
+    setKickoffs(prev => prev.map(k => {
+      if (k.id === kickoffId) {
+        const updated = { ...k, ...updates };
+        saveKickoffToRedis(updated);
+        return updated;
+      }
+      return k;
+    }));
   };
 
   const handleAddKickoff = (newKickoff: Omit<Kickoff, 'id' | 'createdAt' | 'tasks' | 'booked'>) => {
@@ -380,6 +434,7 @@ export default function App() {
       createdAt: Date.now()
     };
     setKickoffs(prev => [kickoff, ...prev]);
+    saveKickoffToRedis(kickoff);
     setIsBookingOpen(false);
   };
 
@@ -777,6 +832,7 @@ export default function App() {
                         const idx = newSas.findIndex(s => s.name === sa.name);
                         newSas[idx].notes = e.target.value;
                         setSas(newSas);
+                        saveSaNote(sa.name, e.target.value);
                       }}
                       placeholder="Add note..."
                       className="w-full bg-transparent border-none text-sm text-[#676c79] focus:ring-0 outline-none italic"
@@ -890,12 +946,17 @@ export default function App() {
               value={saName}
               onChange={setSaName}
               labelClassName="font-sans"
-              options={sasSortedByCapacity.map(sa => ({
-                label: sa.name,
+              options={sasSortedByCapacity.map((sa, idx) => ({
+                label: idx === 0 ? `${sa.name} — Recommended` : sa.name,
                 value: sa.name,
                 badge: <CapacityBadge count={sa.preActivation + sa.earlyStage} />
               }))}
             />
+            {saName === sasSortedByCapacity[0]?.name && (
+              <p className="text-xs text-[#008c44] flex items-center gap-1">
+                <CheckCircle2 size={12} /> Lowest active workload ({sasSortedByCapacity[0]?.preActivation + sasSortedByCapacity[0]?.earlyStage} active use-cases)
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">
