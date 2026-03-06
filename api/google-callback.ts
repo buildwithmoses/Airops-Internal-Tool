@@ -34,6 +34,16 @@ export default async function handler(req: any, res: any) {
     return res.end(`<h1>Error getting token</h1><pre>${JSON.stringify(tokens)}</pre>`);
   }
 
+  // Verify the user has an @airops.com email
+  const userInfoRes = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+    headers: { Authorization: `Bearer ${tokens.access_token}` },
+  });
+  const userInfo = await userInfoRes.json();
+  if (!userInfo.email || !userInfo.email.endsWith('@airops.com')) {
+    res.writeHead(403, { 'Content-Type': 'text/html' });
+    return res.end('<h1>Access denied</h1><p>Only @airops.com accounts can connect.</p>');
+  }
+
   // Store tokens in a cookie (httpOnly for security)
   const cookieValue = encodeURIComponent(JSON.stringify({
     access_token: tokens.access_token,
