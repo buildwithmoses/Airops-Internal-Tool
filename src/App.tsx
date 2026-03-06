@@ -36,6 +36,8 @@ interface Kickoff {
   notes: string;
   booked: boolean;
   createdAt: number;
+  eventDate?: string; // ISO date string from Google Calendar
+  eventLink?: string; // Link to Google Calendar event
 }
 
 interface SA {
@@ -538,10 +540,15 @@ export default function App() {
             {calendarDays.map((day, idx) => {
               const isToday = day && day.toDateString() === new Date().toDateString();
               const dayWeek = day ? getWeekString(day) : '';
-              const dayKickoffs = day ? kickoffs.filter(k => k.week === dayWeek && day.getDay() === 1) : [];
-              // Show kickoffs on Mondays of their week, show dot indicators on other weekdays
-              const weekHasKickoffs = day ? kickoffs.filter(k => k.week === dayWeek).length : 0;
-              const isMonday = day && day.getDay() === 1;
+              // Match kickoffs by actual event date, or fall back to week for manually created ones
+              const dayStr = day ? `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}` : '';
+              const dayKickoffs = day ? kickoffs.filter(k => {
+                if (k.eventDate) {
+                  return k.eventDate.startsWith(dayStr);
+                }
+                // For manually created kickoffs, show on Monday of their week
+                return k.week === dayWeek && day.getDay() === 1;
+              }) : [];
 
               return (
                 <div
@@ -566,13 +573,13 @@ export default function App() {
                         }`}>
                           {day.getDate()}
                         </span>
-                        {isMonday && weekHasKickoffs > 0 && (
+                        {dayKickoffs.length > 0 && (
                           <span className="mono-label text-[10px] text-[#676c79]">
-                            {weekHasKickoffs} kickoff{weekHasKickoffs !== 1 ? 's' : ''}
+                            {dayKickoffs.length} kickoff{dayKickoffs.length !== 1 ? 's' : ''}
                           </span>
                         )}
                       </div>
-                      {isMonday && dayKickoffs.map(k => (
+                      {dayKickoffs.map(k => (
                         <div
                           key={k.id}
                           onClick={(e) => {
@@ -581,20 +588,9 @@ export default function App() {
                           }}
                           className="mb-1 px-1 md:px-1.5 py-0.5 text-[9px] md:text-[11px] truncate cursor-pointer rounded-sm border-l-2 border-[#008c44] bg-[#CCFFE0] text-[#000d05] hover:bg-[#b3f5d0] transition-colors"
                         >
-                          {k.customerName}
+                          {k.customerName}{k.saName ? ` · ${k.saName}` : ''}
                         </div>
                       ))}
-                      {!isMonday && weekHasKickoffs > 0 && (
-                        <div className="flex gap-1 mt-1">
-                          {kickoffs.filter(k => k.week === dayWeek).slice(0, 3).map(k => {
-                            const dotColor = k.status === 'AT RISK' ? 'bg-[#856404]' : k.status === 'COMPLETE' ? 'bg-[#000d05]' : 'bg-[#008c44]';
-                            return <div key={k.id} className={`w-1.5 h-1.5 rounded-full ${dotColor}`} />;
-                          })}
-                          {kickoffs.filter(k => k.week === dayWeek).length > 3 && (
-                            <span className="text-[9px] text-[#676c79]">+{kickoffs.filter(k => k.week === dayWeek).length - 3}</span>
-                          )}
-                        </div>
-                      )}
                     </>
                   )}
                 </div>
