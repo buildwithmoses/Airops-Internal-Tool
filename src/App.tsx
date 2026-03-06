@@ -752,34 +752,6 @@ export default function App() {
           />
         </div>
 
-        <div className="space-y-2">
-          <label className="mono-label text-[#676c79]">Manage SA List (Comma Separated)</label>
-          <textarea 
-            rows={4}
-            value={sas.map(s => s.name).join(', ')}
-            onChange={(e) => {
-              const names = e.target.value.split(',').map(n => n.trim()).filter(n => n);
-              // Basic sync logic
-              const newSas = names.map(name => {
-                const existing = sas.find(s => s.name === name);
-                return existing || { name, activeProjects: 0, earlyStage: 0, midStage: 0, lateStage: 0, notes: "" };
-              });
-              setSas(newSas);
-            }}
-            className="w-full p-3 border border-[#d4e8da] focus:border-[#008c44] outline-none font-sans text-sm"
-          />
-        </div>
-
-        <div className="space-y-2">
-          <label className="mono-label text-[#676c79]">Manage AE List (Comma Separated)</label>
-          <textarea 
-            rows={4}
-            value={aes.join(', ')}
-            onChange={(e) => setAes(e.target.value.split(',').map(n => n.trim()).filter(n => n))}
-            className="w-full p-3 border border-[#d4e8da] focus:border-[#008c44] outline-none font-sans text-sm"
-          />
-        </div>
-
         <button className="bg-[#000d05] text-white px-8 py-3 font-sans font-medium hover:opacity-90 transition-opacity">
           Save Changes
         </button>
