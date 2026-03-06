@@ -822,11 +822,17 @@ export default function App() {
     const [customerName, setCustomerName] = useState('');
     const [aeName, setAeName] = useState(currentUser?.name || '');
     const [saName, setSaName] = useState(sasSortedByCapacity[0]?.name || sas[0]?.name);
+    const [kickoffDate, setKickoffDate] = useState('');
     const [notes, setNotes] = useState('');
 
-    const weekSlotsUsed = kickoffs.filter(k => k.week === bookingWeek).length;
+    const derivedWeek = kickoffDate ? getWeekString(new Date(kickoffDate + 'T00:00:00')) : bookingWeek;
+    const weekSlotsUsed = kickoffs.filter(k => k.week === derivedWeek).length;
     const weekIsFull = weekSlotsUsed >= maxSlots;
     const selectedSaActiveCount = getActiveCount(saName);
+
+    // Min date = today, max date = 8 weeks out
+    const today = new Date().toISOString().split('T')[0];
+    const maxDate = new Date(Date.now() + 56 * 86400000).toISOString().split('T')[0];
 
     return (
       <motion.div
@@ -879,7 +885,7 @@ export default function App() {
           </div>
 
           <div className="space-y-2">
-            <label className="mono-label text-[#676c79]">Preferred SA</label>
+            <label className="mono-label text-[#676c79]">SA</label>
             <CustomSelect
               value={saName}
               onChange={setSaName}
@@ -893,14 +899,16 @@ export default function App() {
           </div>
 
           <div className="space-y-2">
-            <label className="mono-label text-[#676c79]">Kickoff Week</label>
+            <label className="mono-label text-[#676c79]">Kickoff Date</label>
             <input
-              type="text"
-              value={bookingWeek}
-              readOnly
-              className="w-full p-3 border border-[#d4e8da] bg-[#F8FFFA] text-[#676c79] outline-none cursor-not-allowed"
+              type="date"
+              value={kickoffDate}
+              onChange={(e) => setKickoffDate(e.target.value)}
+              min={today}
+              max={maxDate}
+              className="w-full p-3 border border-[#d4e8da] focus:border-[#008c44] outline-none"
             />
-            <p className="text-xs text-[#676c79]">{weekSlotsUsed} / {maxSlots} slots used</p>
+            <p className="text-xs text-[#676c79]">Week {derivedWeek} — {weekSlotsUsed} / {maxSlots} slots used</p>
           </div>
 
           <div className="space-y-2">
@@ -915,8 +923,16 @@ export default function App() {
           </div>
 
           <button
-            onClick={() => handleAddKickoff({ customerName, aeName, saName, week: bookingWeek, status: 'NOT STARTED', notes })}
-            disabled={!customerName || weekIsFull}
+            onClick={() => handleAddKickoff({
+              customerName,
+              aeName,
+              saName,
+              week: derivedWeek,
+              status: 'NOT STARTED',
+              notes,
+              eventDate: kickoffDate ? new Date(kickoffDate + 'T00:00:00').toISOString() : undefined,
+            })}
+            disabled={!customerName || !kickoffDate || weekIsFull}
             className="w-full bg-[#00ff64] text-[#000d05] py-4 font-sans font-bold text-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             <Plus size={20} /> {weekIsFull ? 'Week Full' : 'Confirm Kickoff'}
