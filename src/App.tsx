@@ -83,7 +83,6 @@ const INITIAL_SAS: SA[] = [
   { name: "Zoe Febrero", activeProjects: 0, earlyStage: 0, midStage: 0, lateStage: 0, notes: "" },
 ];
 
-const INITIAL_AES: string[] = [];
 
 // Helper to get week string from date
 const getWeekString = (date: Date) => {
@@ -257,7 +256,6 @@ export default function App() {
   const [sas, setSas] = useState<SA[]>(INITIAL_SAS);
   const [saLoadingState, setSaLoadingState] = useState<'idle' | 'loading' | 'loaded' | 'error'>('idle');
   const [gcalConnected, setGcalConnected] = useState(false);
-  const [aes, setAes] = useState<string[]>(INITIAL_AES);
   const [maxSlots, setMaxSlots] = useState(10);
 
   // Check authentication on load
@@ -457,15 +455,21 @@ export default function App() {
                       <ProgressBar current={slotsUsed} total={maxSlots} />
                     </div>
                   </div>
-                  <button
-                    onClick={() => {
-                      setBookingWeek(week);
-                      setIsBookingOpen(true);
-                    }}
-                    className="bg-[#00ff64] text-[#000d05] px-4 py-2 font-sans font-medium text-sm flex items-center gap-2 hover:opacity-90 transition-opacity self-start sm:self-auto"
-                  >
-                    <Plus size={16} /> Book Slot
-                  </button>
+                  {slotsUsed >= maxSlots ? (
+                    <span className="bg-[#FFE5E5] text-[#991b1b] px-4 py-2 font-sans font-medium text-sm flex items-center gap-2 self-start sm:self-auto">
+                      <AlertCircle size={16} /> Week Full
+                    </span>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        setBookingWeek(week);
+                        setIsBookingOpen(true);
+                      }}
+                      className="bg-[#00ff64] text-[#000d05] px-4 py-2 font-sans font-medium text-sm flex items-center gap-2 hover:opacity-90 transition-opacity self-start sm:self-auto"
+                    >
+                      <Plus size={16} /> Book Slot ({maxSlots - slotsUsed} left)
+                    </button>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -574,6 +578,8 @@ export default function App() {
                   } ${isToday ? 'bg-[#f0faf4]' : ''}`}
                   onClick={() => {
                     if (day) {
+                      const weekKickoffCount = kickoffs.filter(k => k.week === dayWeek).length;
+                      if (weekKickoffCount >= maxSlots) return; // week is full
                       setBookingWeek(dayWeek);
                       setIsBookingOpen(true);
                     }
@@ -813,12 +819,16 @@ export default function App() {
 
   const BookingPanel = () => {
     const [customerName, setCustomerName] = useState('');
-    const [aeName, setAeName] = useState(aes[0]);
+    const [aeName, setAeName] = useState(currentUser?.name || '');
     const [saName, setSaName] = useState(sas[0].name);
     const [notes, setNotes] = useState('');
 
+    const weekSlotsUsed = kickoffs.filter(k => k.week === bookingWeek).length;
+    const weekIsFull = weekSlotsUsed >= maxSlots;
+    const selectedSaCapacity = getCapacityScore(saName);
+
     return (
-      <motion.div 
+      <motion.div
         initial={{ x: '100%' }}
         animate={{ x: 0 }}
         exit={{ x: '100%' }}
@@ -832,10 +842,22 @@ export default function App() {
           </button>
         </div>
 
+        {weekIsFull && (
+          <div className="mb-6 p-3 bg-red-50 border border-red-200 rounded flex items-center gap-2 text-red-700 text-sm">
+            <AlertCircle size={16} /> This week is full ({maxSlots}/{maxSlots} slots used). Choose a different week.
+          </div>
+        )}
+
+        {selectedSaCapacity === 'LOW' && (
+          <div className="mb-6 p-3 bg-amber-50 border border-amber-200 rounded flex items-center gap-2 text-amber-700 text-sm">
+            <AlertCircle size={16} /> {saName} has low capacity. Consider choosing a different SA.
+          </div>
+        )}
+
         <div className="space-y-6">
           <div className="space-y-2">
             <label className="mono-label text-[#676c79]">Customer Name</label>
-            <input 
+            <input
               type="text"
               value={customerName}
               onChange={(e) => setCustomerName(e.target.value)}
@@ -846,22 +868,23 @@ export default function App() {
 
           <div className="space-y-2">
             <label className="mono-label text-[#676c79]">AE Name</label>
-            <CustomSelect 
+            <input
+              type="text"
               value={aeName}
-              onChange={setAeName}
-              labelClassName="font-sans"
-              options={aes.map(ae => ({ label: ae, value: ae }))}
+              onChange={(e) => setAeName(e.target.value)}
+              placeholder="Your name"
+              className="w-full p-3 border border-[#d4e8da] focus:border-[#008c44] outline-none"
             />
           </div>
 
           <div className="space-y-2">
             <label className="mono-label text-[#676c79]">Preferred SA</label>
-            <CustomSelect 
+            <CustomSelect
               value={saName}
               onChange={setSaName}
               labelClassName="font-sans"
-              options={sas.map(sa => ({ 
-                label: sa.name, 
+              options={sas.map(sa => ({
+                label: sa.name,
                 value: sa.name,
                 badge: <CapacityBadge score={getCapacityScore(sa.name)} />
               }))}
@@ -870,17 +893,18 @@ export default function App() {
 
           <div className="space-y-2">
             <label className="mono-label text-[#676c79]">Kickoff Week</label>
-            <input 
+            <input
               type="text"
               value={bookingWeek}
               readOnly
               className="w-full p-3 border border-[#d4e8da] bg-[#F8FFFA] text-[#676c79] outline-none cursor-not-allowed"
             />
+            <p className="text-xs text-[#676c79]">{weekSlotsUsed} / {maxSlots} slots used</p>
           </div>
 
           <div className="space-y-2">
             <label className="mono-label text-[#676c79]">Notes</label>
-            <textarea 
+            <textarea
               rows={4}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
@@ -889,12 +913,12 @@ export default function App() {
             />
           </div>
 
-          <button 
+          <button
             onClick={() => handleAddKickoff({ customerName, aeName, saName, week: bookingWeek, status: 'NOT STARTED', notes })}
-            disabled={!customerName}
+            disabled={!customerName || weekIsFull}
             className="w-full bg-[#00ff64] text-[#000d05] py-4 font-sans font-bold text-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
-            <Plus size={20} /> Confirm Kickoff
+            <Plus size={20} /> {weekIsFull ? 'Week Full' : 'Confirm Kickoff'}
           </button>
         </div>
       </motion.div>
