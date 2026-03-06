@@ -79,7 +79,7 @@ const INITIAL_SAS: SA[] = [
   { name: "Zoe Febrero", activeProjects: 0, earlyStage: 0, midStage: 0, lateStage: 0, notes: "" },
 ];
 
-const INITIAL_AES = ["Sarah Mitchell", "Jake Hoffman", "Priya Nair", "Tom Bellamy", "Celine Dupont"];
+const INITIAL_AES: string[] = [];
 
 // Helper to get week string from date
 const getWeekString = (date: Date) => {
