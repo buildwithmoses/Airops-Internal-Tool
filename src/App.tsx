@@ -251,8 +251,32 @@ export default function App() {
   const [kickoffs, setKickoffs] = useState<Kickoff[]>(SEED_KICKOFFS);
   const [sas, setSas] = useState<SA[]>(INITIAL_SAS);
   const [saLoadingState, setSaLoadingState] = useState<'idle' | 'loading' | 'loaded' | 'error'>('idle');
+  const [gcalConnected, setGcalConnected] = useState(false);
   const [aes, setAes] = useState<string[]>(INITIAL_AES);
   const [maxSlots, setMaxSlots] = useState(10);
+
+  // Fetch kickoffs from Google Calendar
+  useEffect(() => {
+    // Check if just connected via OAuth redirect
+    if (window.location.search.includes('gcal=connected')) {
+      window.history.replaceState({}, '', '/');
+    }
+    fetch('/api/google-calendar-kickoffs')
+      .then(res => res.json())
+      .then(json => {
+        if (json.connected && json.kickoffs?.length > 0) {
+          setGcalConnected(true);
+          setKickoffs(prev => {
+            const existingIds = new Set(prev.map(k => k.id));
+            const newKickoffs = json.kickoffs.filter((k: any) => !existingIds.has(k.id));
+            return [...prev, ...newKickoffs];
+          });
+        } else if (json.connected) {
+          setGcalConnected(true);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // Fetch SA data from Asana API
   useEffect(() => {
@@ -367,19 +391,33 @@ export default function App() {
           <h1 className="text-2xl md:text-4xl mb-1">Weekly Schedule</h1>
           <p className="text-[#676c79] text-sm">Manage kickoff volume and slot availability.</p>
         </div>
-        <div className="flex items-center gap-1 bg-[#F8FFFA] border border-[#d4e8da] p-1 self-start">
-          <button
-            onClick={() => setScheduleViewMode('list')}
-            className={`flex items-center gap-2 px-3 py-1.5 text-sm font-sans transition-colors ${scheduleViewMode === 'list' ? 'bg-white text-[#000d05] shadow-sm' : 'text-[#676c79] hover:text-[#000d05]'}`}
-          >
-            <List size={16} /> List
-          </button>
-          <button
-            onClick={() => setScheduleViewMode('calendar')}
-            className={`flex items-center gap-2 px-3 py-1.5 text-sm font-sans transition-colors ${scheduleViewMode === 'calendar' ? 'bg-white text-[#000d05] shadow-sm' : 'text-[#676c79] hover:text-[#000d05]'}`}
-          >
-            <LayoutGrid size={16} /> Calendar
-          </button>
+        <div className="flex items-center gap-3 self-start">
+          {!gcalConnected ? (
+            <a
+              href="/api/google-auth"
+              className="flex items-center gap-2 px-3 py-1.5 text-sm font-sans bg-white border border-[#d4e8da] text-[#000d05] hover:bg-[#F8FFFA] transition-colors shadow-sm"
+            >
+              <Calendar size={16} /> Connect Google Calendar
+            </a>
+          ) : (
+            <span className="flex items-center gap-2 px-3 py-1.5 text-sm font-sans text-[#008c44] bg-[#CCFFE0]">
+              <CheckCircle2 size={16} /> Calendar Connected
+            </span>
+          )}
+          <div className="flex items-center gap-1 bg-[#F8FFFA] border border-[#d4e8da] p-1">
+            <button
+              onClick={() => setScheduleViewMode('list')}
+              className={`flex items-center gap-2 px-3 py-1.5 text-sm font-sans transition-colors ${scheduleViewMode === 'list' ? 'bg-white text-[#000d05] shadow-sm' : 'text-[#676c79] hover:text-[#000d05]'}`}
+            >
+              <List size={16} /> List
+            </button>
+            <button
+              onClick={() => setScheduleViewMode('calendar')}
+              className={`flex items-center gap-2 px-3 py-1.5 text-sm font-sans transition-colors ${scheduleViewMode === 'calendar' ? 'bg-white text-[#000d05] shadow-sm' : 'text-[#676c79] hover:text-[#000d05]'}`}
+            >
+              <LayoutGrid size={16} /> Calendar
+            </button>
+          </div>
         </div>
       </div>
 
