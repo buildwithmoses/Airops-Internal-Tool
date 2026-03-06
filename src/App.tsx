@@ -349,6 +349,9 @@ export default function App() {
     return 'MEDIUM';
   };
 
+  const capacityOrder = { HIGH: 0, MEDIUM: 1, LOW: 2 };
+  const sasSortedByCapacity = [...sas].sort((a, b) => capacityOrder[getCapacityScore(a.name)] - capacityOrder[getCapacityScore(b.name)]);
+
   const handleToggleTask = (kickoffId: string, taskIndex: number) => {
     setKickoffs(prev => prev.map(k => {
       if (k.id === kickoffId) {
@@ -750,10 +753,10 @@ export default function App() {
             </tr>
           </thead>
           <tbody>
-            {sas.map(sa => {
+            {sasSortedByCapacity.map(sa => {
               const upcoming = kickoffs.filter(k => k.saName === sa.name && k.status !== 'COMPLETE').length;
               const score = getCapacityScore(sa.name);
-              
+
               return (
                 <tr key={sa.name} className="border-t border-[#ecedef] hover:bg-[#f0faf4] transition-colors">
                   <td className="p-4 font-sans font-bold text-sm">{sa.name}</td>
@@ -883,7 +886,7 @@ export default function App() {
               value={saName}
               onChange={setSaName}
               labelClassName="font-sans"
-              options={sas.map(sa => ({
+              options={sasSortedByCapacity.map(sa => ({
                 label: sa.name,
                 value: sa.name,
                 badge: <CapacityBadge score={getCapacityScore(sa.name)} />
