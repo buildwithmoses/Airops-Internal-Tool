@@ -17,7 +17,8 @@ import {
   CheckCircle2,
   ArrowRight,
   LayoutGrid,
-  Menu
+  Menu,
+  LogOut
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -1176,12 +1177,24 @@ export default function App() {
 
         <div className="p-6 border-t border-[#d4e8da]">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-[#000d05] text-white flex items-center justify-center text-xs font-bold">HL</div>
+            {currentUser?.picture ? (
+              <img src={currentUser.picture} alt="" className="w-8 h-8 rounded-full" />
+            ) : (
+              <div className="w-8 h-8 bg-[#000d05] text-white flex items-center justify-center text-xs font-bold rounded-full">
+                {currentUser?.name?.split(' ').map(n => n[0]).join('').slice(0, 2) || '?'}
+              </div>
+            )}
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-bold truncate">Henry Lee</p>
-              <p className="text-[10px] text-[#676c79] truncate">Solutions Architect</p>
+              <p className="text-xs font-bold truncate">{currentUser?.name || 'User'}</p>
+              <p className="text-[10px] text-[#676c79] truncate">{currentUser?.email || ''}</p>
             </div>
           </div>
+          <a
+            href="/api/logout"
+            className="flex items-center gap-2 mt-3 px-3 py-1.5 text-xs font-sans text-[#676c79] hover:text-[#000d05] hover:bg-[#f0faf4] transition-colors w-full"
+          >
+            <LogOut size={14} /> Sign out
+          </a>
         </div>
       </aside>
 
