@@ -16,7 +16,8 @@ import {
   AlertCircle,
   CheckCircle2,
   ArrowRight,
-  LayoutGrid
+  LayoutGrid,
+  Menu
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -240,11 +241,36 @@ const CustomSelect = ({ value, onChange, options, placeholder, className, labelC
 
 export default function App() {
   const [view, setView] = useState<'schedule' | 'all' | 'capacity' | 'settings'>('schedule');
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [kickoffs, setKickoffs] = useState<Kickoff[]>(SEED_KICKOFFS);
   const [sas, setSas] = useState<SA[]>(INITIAL_SAS);
+  const [saLoadingState, setSaLoadingState] = useState<'idle' | 'loading' | 'loaded' | 'error'>('idle');
   const [aes, setAes] = useState<string[]>(INITIAL_AES);
   const [maxSlots, setMaxSlots] = useState(10);
-  
+
+  // Fetch SA data from Asana API
+  useEffect(() => {
+    setSaLoadingState('loading');
+    fetch('/api/asana-sa-data')
+      .then(res => res.json())
+      .then(json => {
+        if (json.data && json.data.length > 0) {
+          setSas(json.data.map((sa: any) => ({
+            name: sa.name,
+            activeProjects: sa.activeProjects,
+            earlyStage: sa.earlyStage,
+            midStage: sa.midStage,
+            lateStage: sa.lateStage,
+            notes: sa.notes || '',
+          })));
+          setSaLoadingState('loaded');
+        } else {
+          setSaLoadingState('error');
+        }
+      })
+      .catch(() => setSaLoadingState('error'));
+  }, []);
+
   const [selectedKickoffId, setSelectedKickoffId] = useState<string | null>(null);
   const [isBookingOpen, setIsBookingOpen] = useState(false);
   const [bookingWeek, setBookingWeek] = useState<string>('');
@@ -329,13 +355,13 @@ export default function App() {
   const DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
   const WeeklyScheduleView = () => (
-    <div className="space-y-8 animate-in fade-in duration-500">
-      <div className="flex justify-between items-end">
+    <div className="space-y-6 md:space-y-8 animate-in fade-in duration-500">
+      <div className="flex flex-col sm:flex-row justify-between sm:items-end gap-4">
         <div>
-          <h1 className="text-4xl mb-1">Weekly Schedule</h1>
+          <h1 className="text-2xl md:text-4xl mb-1">Weekly Schedule</h1>
           <p className="text-[#676c79] text-sm">Manage kickoff volume and slot availability.</p>
         </div>
-        <div className="flex items-center gap-1 bg-[#F8FFFA] border border-[#d4e8da] p-1">
+        <div className="flex items-center gap-1 bg-[#F8FFFA] border border-[#d4e8da] p-1 self-start">
           <button
             onClick={() => setScheduleViewMode('list')}
             className={`flex items-center gap-2 px-3 py-1.5 text-sm font-sans transition-colors ${scheduleViewMode === 'list' ? 'bg-white text-[#000d05] shadow-sm' : 'text-[#676c79] hover:text-[#000d05]'}`}
@@ -358,14 +384,14 @@ export default function App() {
             const slotsUsed = weekKickoffs.length;
 
             return (
-              <div key={week} className="border border-[#d4e8da] bg-white p-6 space-y-6">
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-6">
-                    <div className="min-w-[120px]">
-                      <h3 className="text-lg font-sans font-medium text-[#09090b]">{week}</h3>
+              <div key={week} className="border border-[#d4e8da] bg-white p-4 md:p-6 space-y-4 md:space-y-6">
+                <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3">
+                  <div className="flex items-center gap-4 md:gap-6">
+                    <div className="min-w-[100px] md:min-w-[120px]">
+                      <h3 className="text-base md:text-lg font-sans font-medium text-[#09090b]">{week}</h3>
                       <p className="mono-label text-[#676c79]">{slotsUsed} / {maxSlots} SLOTS</p>
                     </div>
-                    <div className="w-48">
+                    <div className="w-32 md:w-48">
                       <ProgressBar current={slotsUsed} total={maxSlots} />
                     </div>
                   </div>
@@ -374,7 +400,7 @@ export default function App() {
                       setBookingWeek(week);
                       setIsBookingOpen(true);
                     }}
-                    className="bg-[#00ff64] text-[#000d05] px-4 py-2 font-sans font-medium text-sm flex items-center gap-2 hover:opacity-90 transition-opacity"
+                    className="bg-[#00ff64] text-[#000d05] px-4 py-2 font-sans font-medium text-sm flex items-center gap-2 hover:opacity-90 transition-opacity self-start sm:self-auto"
                   >
                     <Plus size={16} /> Book Slot
                   </button>
@@ -477,7 +503,7 @@ export default function App() {
               return (
                 <div
                   key={idx}
-                  className={`min-h-[110px] border-b border-r border-[#ecedef] p-2 transition-colors ${
+                  className={`min-h-[60px] md:min-h-[110px] border-b border-r border-[#ecedef] p-1 md:p-2 transition-colors ${
                     day ? (isWeekend ? 'bg-[#fafafa]' : 'hover:bg-[#f0faf4]') : 'bg-[#fafafa]'
                   } ${isToday ? 'bg-[#f0faf4]' : ''}`}
                   onClick={() => {
@@ -510,7 +536,7 @@ export default function App() {
                             e.stopPropagation();
                             setSelectedKickoffId(k.id);
                           }}
-                          className="mb-1 px-1.5 py-0.5 text-[11px] truncate cursor-pointer rounded-sm border-l-2 border-[#008c44] bg-[#CCFFE0] text-[#000d05] hover:bg-[#b3f5d0] transition-colors"
+                          className="mb-1 px-1 md:px-1.5 py-0.5 text-[9px] md:text-[11px] truncate cursor-pointer rounded-sm border-l-2 border-[#008c44] bg-[#CCFFE0] text-[#000d05] hover:bg-[#b3f5d0] transition-colors"
                         >
                           {k.customerName}
                         </div>
@@ -540,13 +566,13 @@ export default function App() {
   const AllKickoffsView = () => (
     <div className="space-y-6 animate-in fade-in duration-500">
       <div>
-        <h1 className="text-4xl mb-1">All Kickoffs</h1>
+        <h1 className="text-2xl md:text-4xl mb-1">All Kickoffs</h1>
         <p className="text-[#676c79] text-sm">Full database of all customer kickoff projects.</p>
       </div>
 
       {/* Filter Bar */}
-      <div className="flex flex-wrap items-center gap-4 bg-[#F8FFFA] p-4 border border-[#d4e8da]">
-        <div className="relative flex-1 min-w-[200px]">
+      <div className="flex flex-wrap items-center gap-3 md:gap-4 bg-[#F8FFFA] p-3 md:p-4 border border-[#d4e8da]">
+        <div className="relative flex-1 min-w-[150px] sm:min-w-[200px]">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#a5aab6]" />
           <input 
             type="text"
@@ -557,10 +583,10 @@ export default function App() {
           />
         </div>
         
-        <CustomSelect 
+        <CustomSelect
           value={filterStatus}
           onChange={(val) => setFilterStatus(val as any)}
-          className="min-w-[180px]"
+          className="min-w-[140px] sm:min-w-[180px]"
           options={[
             { label: 'ALL STATUSES', value: 'ALL' },
             { label: 'NOT STARTED', value: 'NOT STARTED', badge: <StatusBadge status="NOT STARTED" /> },
@@ -570,10 +596,10 @@ export default function App() {
           ]}
         />
 
-        <CustomSelect 
+        <CustomSelect
           value={filterSA}
           onChange={(val) => setFilterSA(val)}
-          className="min-w-[180px]"
+          className="min-w-[140px] sm:min-w-[180px]"
           options={[
             { label: 'ALL SAs', value: 'ALL' },
             ...sas.map(sa => ({ label: sa.name.toUpperCase(), value: sa.name }))
@@ -646,7 +672,7 @@ export default function App() {
   const SACapacityView = () => (
     <div className="space-y-6 animate-in fade-in duration-500">
       <div>
-        <h1 className="text-4xl mb-1">SA Capacity</h1>
+        <h1 className="text-2xl md:text-4xl mb-1">SA Capacity</h1>
         <p className="text-[#676c79] text-sm">Real-time visibility into Solutions Architect workload.</p>
       </div>
 
@@ -704,9 +730,9 @@ export default function App() {
   );
 
   const SettingsView = () => (
-    <div className="max-w-2xl space-y-8 animate-in fade-in duration-500">
+    <div className="max-w-2xl space-y-6 md:space-y-8 animate-in fade-in duration-500">
       <div>
-        <h1 className="text-4xl mb-1">Settings</h1>
+        <h1 className="text-2xl md:text-4xl mb-1">Settings</h1>
         <p className="text-[#676c79] text-sm">Configure tool defaults and team lists.</p>
       </div>
 
@@ -770,7 +796,7 @@ export default function App() {
         animate={{ x: 0 }}
         exit={{ x: '100%' }}
         transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-        className="fixed top-0 right-0 h-full w-[420px] bg-white border-l border-[#d4e8da] z-50 shadow-2xl p-8 overflow-y-auto"
+        className="fixed top-0 right-0 h-full w-full sm:w-[420px] bg-white border-l border-[#d4e8da] z-50 shadow-2xl p-6 sm:p-8 overflow-y-auto"
       >
         <div className="flex justify-between items-center mb-8">
           <h2 className="text-3xl font-serif">Book Slot</h2>
@@ -859,11 +885,11 @@ export default function App() {
         animate={{ x: 0 }}
         exit={{ x: '100%' }}
         transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-        className="fixed top-0 right-0 h-full w-[420px] bg-white border-l border-[#d4e8da] z-50 shadow-2xl flex flex-col"
+        className="fixed top-0 right-0 h-full w-full sm:w-[420px] bg-white border-l border-[#d4e8da] z-50 shadow-2xl flex flex-col"
       >
-        <div className="p-8 border-b border-[#ecedef] flex justify-between items-start">
+        <div className="p-6 sm:p-8 border-b border-[#ecedef] flex justify-between items-start">
           <div>
-            <h2 className="text-3xl font-serif mb-2">{selectedKickoff.customerName}</h2>
+            <h2 className="text-2xl sm:text-3xl font-serif mb-2">{selectedKickoff.customerName}</h2>
             <div className="flex gap-2">
               <StatusBadge status={selectedKickoff.status} />
               <span className="mono-label bg-[#EEFF8C] text-[#000d05] px-2 py-0.5">{selectedKickoff.week}</span>
@@ -874,7 +900,7 @@ export default function App() {
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-8 space-y-8">
+        <div className="flex-1 overflow-y-auto p-6 sm:p-8 space-y-6 sm:space-y-8">
           {/* Progress Summary */}
           <div className="bg-[#F8FFFA] p-4 border border-[#d4e8da]">
             <div className="flex justify-between items-center mb-2">
@@ -961,14 +987,93 @@ export default function App() {
     );
   };
 
+  const handleNavClick = (newView: typeof view) => {
+    setView(newView);
+    setMobileSidebarOpen(false);
+  };
+
   return (
     <div className="flex min-h-screen bg-white font-sans">
-      {/* Sidebar */}
-      <aside className="w-[220px] bg-[#F8FFFA] border-r border-[#d4e8da] flex flex-col fixed h-full">
+      {/* Mobile Header */}
+      <header className="md:hidden fixed top-0 left-0 right-0 z-30 bg-[#F8FFFA] border-b border-[#d4e8da] flex items-center justify-between px-4 py-3">
+        <button onClick={() => setMobileSidebarOpen(true)} className="text-[#000d05] p-1">
+          <Menu size={24} />
+        </button>
+        <img
+          src="https://mms.businesswire.com/media/20251110823725/en/2637492/4/AirOps_logo.jpg"
+          alt="AirOps Logo"
+          className="w-[90px] h-auto mix-blend-multiply"
+          referrerPolicy="no-referrer"
+        />
+        <div className="w-8 h-8 bg-[#000d05] text-white flex items-center justify-center text-xs font-bold">HL</div>
+      </header>
+
+      {/* Mobile Sidebar Overlay */}
+      <AnimatePresence>
+        {mobileSidebarOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setMobileSidebarOpen(false)}
+              className="md:hidden fixed inset-0 bg-black/20 backdrop-blur-[2px] z-40"
+            />
+            <motion.aside
+              initial={{ x: '-100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '-100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="md:hidden fixed top-0 left-0 h-full w-[260px] bg-[#F8FFFA] border-r border-[#d4e8da] flex flex-col z-50 shadow-2xl"
+            >
+              <div className="p-6 mb-4 flex items-center justify-between">
+                <div>
+                  <img
+                    src="https://mms.businesswire.com/media/20251110823725/en/2637492/4/AirOps_logo.jpg"
+                    alt="AirOps Logo"
+                    className="w-[120px] h-auto mix-blend-multiply"
+                    referrerPolicy="no-referrer"
+                  />
+                  <div className="mt-4 mono-label text-[#676c79]">Kickoff Hub</div>
+                </div>
+                <button onClick={() => setMobileSidebarOpen(false)} className="text-[#676c79] hover:text-[#000d05]">
+                  <X size={24} />
+                </button>
+              </div>
+              <nav className="flex-1">
+                <button onClick={() => handleNavClick('schedule')} className={`w-full flex items-center gap-3 px-6 py-3 text-sm font-sans transition-all ${view === 'schedule' ? 'border-l-[3px] border-[#008c44] bg-[#f0faf4] text-[#000d05]' : 'text-[#676c79] hover:bg-[#f0faf4] hover:text-[#000d05]'}`}>
+                  <Calendar size={18} /> Weekly Schedule
+                </button>
+                <button onClick={() => handleNavClick('all')} className={`w-full flex items-center gap-3 px-6 py-3 text-sm font-sans transition-all ${view === 'all' ? 'border-l-[3px] border-[#008c44] bg-[#f0faf4] text-[#000d05]' : 'text-[#676c79] hover:bg-[#f0faf4] hover:text-[#000d05]'}`}>
+                  <List size={18} /> All Kickoffs
+                </button>
+                <button onClick={() => handleNavClick('capacity')} className={`w-full flex items-center gap-3 px-6 py-3 text-sm font-sans transition-all ${view === 'capacity' ? 'border-l-[3px] border-[#008c44] bg-[#f0faf4] text-[#000d05]' : 'text-[#676c79] hover:bg-[#f0faf4] hover:text-[#000d05]'}`}>
+                  <Users size={18} /> SA Capacity
+                </button>
+                <button onClick={() => handleNavClick('settings')} className={`w-full flex items-center gap-3 px-6 py-3 text-sm font-sans transition-all ${view === 'settings' ? 'border-l-[3px] border-[#008c44] bg-[#f0faf4] text-[#000d05]' : 'text-[#676c79] hover:bg-[#f0faf4] hover:text-[#000d05]'}`}>
+                  <SettingsIcon size={18} /> Settings
+                </button>
+              </nav>
+              <div className="p-6 border-t border-[#d4e8da]">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-[#000d05] text-white flex items-center justify-center text-xs font-bold">HL</div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-bold truncate">Henry Lee</p>
+                    <p className="text-[10px] text-[#676c79] truncate">Solutions Architect</p>
+                  </div>
+                </div>
+              </div>
+            </motion.aside>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Desktop Sidebar */}
+      <aside className="hidden md:flex w-[220px] bg-[#F8FFFA] border-r border-[#d4e8da] flex-col fixed h-full">
         <div className="p-6 mb-4">
-          <img 
-            src="https://mms.businesswire.com/media/20251110823725/en/2637492/4/AirOps_logo.jpg" 
-            alt="AirOps Logo" 
+          <img
+            src="https://mms.businesswire.com/media/20251110823725/en/2637492/4/AirOps_logo.jpg"
+            alt="AirOps Logo"
             className="w-[120px] h-auto mix-blend-multiply"
             referrerPolicy="no-referrer"
           />
@@ -976,25 +1081,25 @@ export default function App() {
         </div>
 
         <nav className="flex-1">
-          <button 
+          <button
             onClick={() => setView('schedule')}
             className={`w-full flex items-center gap-3 px-6 py-3 text-sm font-sans transition-all ${view === 'schedule' ? 'border-l-[3px] border-[#008c44] bg-[#f0faf4] text-[#000d05]' : 'text-[#676c79] hover:bg-[#f0faf4] hover:text-[#000d05]'}`}
           >
             <Calendar size={18} /> Weekly Schedule
           </button>
-          <button 
+          <button
             onClick={() => setView('all')}
             className={`w-full flex items-center gap-3 px-6 py-3 text-sm font-sans transition-all ${view === 'all' ? 'border-l-[3px] border-[#008c44] bg-[#f0faf4] text-[#000d05]' : 'text-[#676c79] hover:bg-[#f0faf4] hover:text-[#000d05]'}`}
           >
             <List size={18} /> All Kickoffs
           </button>
-          <button 
+          <button
             onClick={() => setView('capacity')}
             className={`w-full flex items-center gap-3 px-6 py-3 text-sm font-sans transition-all ${view === 'capacity' ? 'border-l-[3px] border-[#008c44] bg-[#f0faf4] text-[#000d05]' : 'text-[#676c79] hover:bg-[#f0faf4] hover:text-[#000d05]'}`}
           >
             <Users size={18} /> SA Capacity
           </button>
-          <button 
+          <button
             onClick={() => setView('settings')}
             className={`w-full flex items-center gap-3 px-6 py-3 text-sm font-sans transition-all ${view === 'settings' ? 'border-l-[3px] border-[#008c44] bg-[#f0faf4] text-[#000d05]' : 'text-[#676c79] hover:bg-[#f0faf4] hover:text-[#000d05]'}`}
           >
@@ -1014,7 +1119,7 @@ export default function App() {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 ml-[220px] p-12">
+      <main className="flex-1 md:ml-[220px] p-4 pt-16 md:pt-12 md:p-12">
         {view === 'schedule' && <WeeklyScheduleView />}
         {view === 'all' && <AllKickoffsView />}
         {view === 'capacity' && <SACapacityView />}
