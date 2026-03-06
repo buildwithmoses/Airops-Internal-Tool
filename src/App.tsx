@@ -118,15 +118,21 @@ const getWeekStartDate = (weekStr: string): Date => {
   return monday;
 };
 
-// Get calendar grid for a given month
+// Get calendar grid for a given month (weekdays only, Mon-Fri)
 const getCalendarDays = (year: number, month: number) => {
   const firstDay = new Date(year, month, 1);
   const lastDay = new Date(year, month + 1, 0);
-  const startOffset = (firstDay.getDay() + 6) % 7; // Monday-based
+  // Monday-based offset, but only count weekdays (Mon=0, Tue=1, Wed=2, Thu=3, Fri=4)
+  const dayOfWeek = (firstDay.getDay() + 6) % 7; // 0=Mon, 6=Sun
+  const startOffset = Math.min(dayOfWeek, 5); // Cap at 5 (if starts on weekend, no offset needed)
   const days: (Date | null)[] = [];
   for (let i = 0; i < startOffset; i++) days.push(null);
-  for (let d = 1; d <= lastDay.getDate(); d++) days.push(new Date(year, month, d));
-  while (days.length % 7 !== 0) days.push(null);
+  for (let d = 1; d <= lastDay.getDate(); d++) {
+    const date = new Date(year, month, d);
+    const dow = date.getDay();
+    if (dow !== 0 && dow !== 6) days.push(date); // Skip Sat & Sun
+  }
+  while (days.length % 5 !== 0) days.push(null);
   return days;
 };
 
@@ -352,7 +358,7 @@ export default function App() {
   const calendarDays = useMemo(() => getCalendarDays(calendarMonth.year, calendarMonth.month), [calendarMonth]);
 
   const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-  const DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  const DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri"];
 
   const WeeklyScheduleView = () => (
     <div className="space-y-6 md:space-y-8 animate-in fade-in duration-500">
@@ -481,7 +487,7 @@ export default function App() {
           </div>
 
           {/* Day labels */}
-          <div className="grid grid-cols-7 border-b border-[#d4e8da]">
+          <div className="grid grid-cols-5 border-b border-[#d4e8da]">
             {DAY_NAMES.map(day => (
               <div key={day} className="p-2 text-center mono-label text-[#676c79] text-xs">
                 {day}
@@ -490,7 +496,7 @@ export default function App() {
           </div>
 
           {/* Calendar grid */}
-          <div className="grid grid-cols-7">
+          <div className="grid grid-cols-5">
             {calendarDays.map((day, idx) => {
               const isToday = day && day.toDateString() === new Date().toDateString();
               const dayWeek = day ? getWeekString(day) : '';
@@ -498,16 +504,15 @@ export default function App() {
               // Show kickoffs on Mondays of their week, show dot indicators on other weekdays
               const weekHasKickoffs = day ? kickoffs.filter(k => k.week === dayWeek).length : 0;
               const isMonday = day && day.getDay() === 1;
-              const isWeekend = day && (day.getDay() === 0 || day.getDay() === 6);
 
               return (
                 <div
                   key={idx}
                   className={`min-h-[60px] md:min-h-[110px] border-b border-r border-[#ecedef] p-1 md:p-2 transition-colors ${
-                    day ? (isWeekend ? 'bg-[#fafafa]' : 'hover:bg-[#f0faf4]') : 'bg-[#fafafa]'
+                    day ? 'hover:bg-[#f0faf4]' : 'bg-[#fafafa]'
                   } ${isToday ? 'bg-[#f0faf4]' : ''}`}
                   onClick={() => {
-                    if (day && !isWeekend) {
+                    if (day) {
                       setBookingWeek(dayWeek);
                       setIsBookingOpen(true);
                     }
@@ -519,7 +524,7 @@ export default function App() {
                         <span className={`text-sm font-sans ${
                           isToday
                             ? 'bg-[#008c44] text-white w-6 h-6 flex items-center justify-center rounded-full font-bold'
-                            : isWeekend ? 'text-[#a5aab6]' : 'text-[#09090b]'
+                            : 'text-[#09090b]'
                         }`}>
                           {day.getDate()}
                         </span>
@@ -541,7 +546,7 @@ export default function App() {
                           {k.customerName}
                         </div>
                       ))}
-                      {!isMonday && !isWeekend && weekHasKickoffs > 0 && (
+                      {!isMonday && weekHasKickoffs > 0 && (
                         <div className="flex gap-1 mt-1">
                           {kickoffs.filter(k => k.week === dayWeek).slice(0, 3).map(k => {
                             const dotColor = k.status === 'AT RISK' ? 'bg-[#856404]' : k.status === 'COMPLETE' ? 'bg-[#000d05]' : 'bg-[#008c44]';
@@ -1005,7 +1010,7 @@ export default function App() {
           className="w-[90px] h-auto mix-blend-multiply"
           referrerPolicy="no-referrer"
         />
-        <div className="w-8 h-8 bg-[#000d05] text-white flex items-center justify-center text-xs font-bold">HL</div>
+        <div className="w-8 h-8 bg-[#000d05] text-white flex items-center justify-center text-xs font-bold">KH</div>
       </header>
 
       {/* Mobile Sidebar Overlay */}
@@ -1056,9 +1061,9 @@ export default function App() {
               </nav>
               <div className="p-6 border-t border-[#d4e8da]">
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-[#000d05] text-white flex items-center justify-center text-xs font-bold">HL</div>
+                  <div className="w-8 h-8 bg-[#000d05] text-white flex items-center justify-center text-xs font-bold">KH</div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-bold truncate">Henry Lee</p>
+                    <p className="text-xs font-bold truncate">Kickoff Hub</p>
                     <p className="text-[10px] text-[#676c79] truncate">Solutions Architect</p>
                   </div>
                 </div>
