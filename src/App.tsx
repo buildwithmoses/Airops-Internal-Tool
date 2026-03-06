@@ -44,6 +44,7 @@ interface Kickoff {
 interface SA {
   name: string;
   activeProjects: number;
+  preActivation: number;
   earlyStage: number;
   midStage: number;
   lateStage: number;
@@ -63,24 +64,24 @@ const STANDARD_TASKS = [
 ];
 
 const INITIAL_SAS: SA[] = [
-  { name: "Aaron Lit", activeProjects: 0, earlyStage: 0, midStage: 0, lateStage: 0, notes: "" },
-  { name: "AJ Diaz", activeProjects: 0, earlyStage: 0, midStage: 0, lateStage: 0, notes: "" },
-  { name: "Andreea Volzer", activeProjects: 0, earlyStage: 0, midStage: 0, lateStage: 0, notes: "" },
-  { name: "Anton O'Malley", activeProjects: 0, earlyStage: 0, midStage: 0, lateStage: 0, notes: "" },
-  { name: "Arnett Shen", activeProjects: 0, earlyStage: 0, midStage: 0, lateStage: 0, notes: "" },
-  { name: "Diana Shiling", activeProjects: 0, earlyStage: 0, midStage: 0, lateStage: 0, notes: "" },
-  { name: "Elmi Abdullahi", activeProjects: 0, earlyStage: 0, midStage: 0, lateStage: 0, notes: "" },
-  { name: "Henry Moses Jr", activeProjects: 0, earlyStage: 0, midStage: 0, lateStage: 0, notes: "" },
-  { name: "Henry Young", activeProjects: 0, earlyStage: 0, midStage: 0, lateStage: 0, notes: "" },
-  { name: "Jeremy Kao", activeProjects: 0, earlyStage: 0, midStage: 0, lateStage: 0, notes: "" },
-  { name: "Joel Fazecas", activeProjects: 0, earlyStage: 0, midStage: 0, lateStage: 0, notes: "" },
-  { name: "John Sellers", activeProjects: 0, earlyStage: 0, midStage: 0, lateStage: 0, notes: "" },
-  { name: "Melanie Dell'Olio", activeProjects: 0, earlyStage: 0, midStage: 0, lateStage: 0, notes: "" },
-  { name: "Palmer Jones", activeProjects: 0, earlyStage: 0, midStage: 0, lateStage: 0, notes: "" },
-  { name: "Richard Li", activeProjects: 0, earlyStage: 0, midStage: 0, lateStage: 0, notes: "" },
-  { name: "Shahbaz Mahmood", activeProjects: 0, earlyStage: 0, midStage: 0, lateStage: 0, notes: "" },
-  { name: "William Reed", activeProjects: 0, earlyStage: 0, midStage: 0, lateStage: 0, notes: "" },
-  { name: "Zoe Febrero", activeProjects: 0, earlyStage: 0, midStage: 0, lateStage: 0, notes: "" },
+  { name: "Aaron Lit", activeProjects: 0, preActivation: 0, earlyStage: 0, midStage: 0, lateStage: 0, notes: ""},
+  { name: "AJ Diaz", activeProjects: 0, preActivation: 0, earlyStage: 0, midStage: 0, lateStage: 0, notes: ""},
+  { name: "Andreea Volzer", activeProjects: 0, preActivation: 0, earlyStage: 0, midStage: 0, lateStage: 0, notes: ""},
+  { name: "Anton O'Malley", activeProjects: 0, preActivation: 0, earlyStage: 0, midStage: 0, lateStage: 0, notes: ""},
+  { name: "Arnett Shen", activeProjects: 0, preActivation: 0, earlyStage: 0, midStage: 0, lateStage: 0, notes: ""},
+  { name: "Diana Shiling", activeProjects: 0, preActivation: 0, earlyStage: 0, midStage: 0, lateStage: 0, notes: ""},
+  { name: "Elmi Abdullahi", activeProjects: 0, preActivation: 0, earlyStage: 0, midStage: 0, lateStage: 0, notes: ""},
+  { name: "Henry Moses Jr", activeProjects: 0, preActivation: 0, earlyStage: 0, midStage: 0, lateStage: 0, notes: ""},
+  { name: "Henry Young", activeProjects: 0, preActivation: 0, earlyStage: 0, midStage: 0, lateStage: 0, notes: ""},
+  { name: "Jeremy Kao", activeProjects: 0, preActivation: 0, earlyStage: 0, midStage: 0, lateStage: 0, notes: ""},
+  { name: "Joel Fazecas", activeProjects: 0, preActivation: 0, earlyStage: 0, midStage: 0, lateStage: 0, notes: ""},
+  { name: "John Sellers", activeProjects: 0, preActivation: 0, earlyStage: 0, midStage: 0, lateStage: 0, notes: ""},
+  { name: "Melanie Dell'Olio", activeProjects: 0, preActivation: 0, earlyStage: 0, midStage: 0, lateStage: 0, notes: ""},
+  { name: "Palmer Jones", activeProjects: 0, preActivation: 0, earlyStage: 0, midStage: 0, lateStage: 0, notes: ""},
+  { name: "Richard Li", activeProjects: 0, preActivation: 0, earlyStage: 0, midStage: 0, lateStage: 0, notes: ""},
+  { name: "Shahbaz Mahmood", activeProjects: 0, preActivation: 0, earlyStage: 0, midStage: 0, lateStage: 0, notes: ""},
+  { name: "William Reed", activeProjects: 0, preActivation: 0, earlyStage: 0, midStage: 0, lateStage: 0, notes: ""},
+  { name: "Zoe Febrero", activeProjects: 0, preActivation: 0, earlyStage: 0, midStage: 0, lateStage: 0, notes: ""},
 ];
 
 
@@ -155,16 +156,16 @@ const StatusBadge = ({ status }: { status: Status }) => {
   );
 };
 
-const CapacityBadge = ({ score }: { score: 'HIGH' | 'MEDIUM' | 'LOW' }) => {
-  const styles = {
-    HIGH: 'bg-[#CCFFE0] text-[#008c44]',
-    MEDIUM: 'bg-[#EEFF8C] text-[#000d05]',
-    LOW: 'bg-[#FFE5E5] text-[#991b1b]'
-  };
+const CapacityBadge = ({ count }: { count: number }) => {
+  const style = count < 3
+    ? 'bg-[#CCFFE0] text-[#008c44]'
+    : count <= 4
+      ? 'bg-[#EEFF8C] text-[#000d05]'
+      : 'bg-[#FFE5E5] text-[#991b1b]';
 
   return (
-    <span className={`mono-label px-2 py-0.5 inline-block ${styles[score]}`}>
-      {score}
+    <span className={`mono-label px-2 py-0.5 inline-block ${style}`}>
+      {count} active
     </span>
   );
 };
@@ -304,6 +305,7 @@ export default function App() {
           setSas(json.data.map((sa: any) => ({
             name: sa.name,
             activeProjects: sa.activeProjects,
+            preActivation: sa.preActivation || 0,
             earlyStage: sa.earlyStage,
             midStage: sa.midStage,
             lateStage: sa.lateStage,
@@ -339,18 +341,13 @@ export default function App() {
   );
 
   // Capacity Score Heuristic
-  const getCapacityScore = (saName: string) => {
+  const getActiveCount = (saName: string) => {
     const sa = sas.find(s => s.name === saName);
-    const upcoming = kickoffs.filter(k => k.saName === saName && k.status !== 'COMPLETE').length;
-    if (!sa) return 'HIGH';
-    
-    if (sa.activeProjects <= 2 && upcoming <= 1) return 'HIGH';
-    if (sa.activeProjects >= 5 || upcoming >= 3) return 'LOW';
-    return 'MEDIUM';
+    if (!sa) return 0;
+    return sa.preActivation + sa.earlyStage;
   };
 
-  const capacityOrder = { HIGH: 0, MEDIUM: 1, LOW: 2 };
-  const sasSortedByCapacity = [...sas].sort((a, b) => capacityOrder[getCapacityScore(a.name)] - capacityOrder[getCapacityScore(b.name)]);
+  const sasSortedByCapacity = [...sas].sort((a, b) => (a.preActivation + a.earlyStage) - (b.preActivation + b.earlyStage));
 
   const handleToggleTask = (kickoffId: string, taskIndex: number) => {
     setKickoffs(prev => prev.map(k => {
@@ -755,7 +752,7 @@ export default function App() {
           <tbody>
             {sasSortedByCapacity.map(sa => {
               const upcoming = kickoffs.filter(k => k.saName === sa.name && k.status !== 'COMPLETE').length;
-              const score = getCapacityScore(sa.name);
+              const activeCount = getActiveCount(sa.name);
 
               return (
                 <tr key={sa.name} className="border-t border-[#ecedef] hover:bg-[#f0faf4] transition-colors">
@@ -763,13 +760,14 @@ export default function App() {
                   <td className="p-4 text-sm font-mono">{sa.activeProjects}</td>
                   <td className="p-4 text-xs text-[#676c79]">
                     <div className="flex items-center gap-1">
-                      <span className="text-[#008c44] font-bold">{sa.earlyStage}</span> early / 
-                      <span className="text-[#008c44] font-bold">{sa.midStage}</span> mid / 
+                      <span className="text-[#008c44] font-bold">{sa.preActivation}</span> pre /
+                      <span className="text-[#008c44] font-bold">{sa.earlyStage}</span> early /
+                      <span className="text-[#008c44] font-bold">{sa.midStage}</span> mid /
                       <span className="text-[#008c44] font-bold">{sa.lateStage}</span> late
                     </div>
                   </td>
                   <td className="p-4 text-sm font-mono">{upcoming}</td>
-                  <td className="p-4"><CapacityBadge score={score} /></td>
+                  <td className="p-4"><CapacityBadge count={activeCount} /></td>
                   <td className="p-4">
                     <input 
                       type="text"
@@ -823,12 +821,12 @@ export default function App() {
   const BookingPanel = () => {
     const [customerName, setCustomerName] = useState('');
     const [aeName, setAeName] = useState(currentUser?.name || '');
-    const [saName, setSaName] = useState(sas[0].name);
+    const [saName, setSaName] = useState(sasSortedByCapacity[0]?.name || sas[0]?.name);
     const [notes, setNotes] = useState('');
 
     const weekSlotsUsed = kickoffs.filter(k => k.week === bookingWeek).length;
     const weekIsFull = weekSlotsUsed >= maxSlots;
-    const selectedSaCapacity = getCapacityScore(saName);
+    const selectedSaActiveCount = getActiveCount(saName);
 
     return (
       <motion.div
@@ -851,7 +849,7 @@ export default function App() {
           </div>
         )}
 
-        {selectedSaCapacity === 'LOW' && (
+        {selectedSaActiveCount >= 5 && (
           <div className="mb-6 p-3 bg-amber-50 border border-amber-200 rounded flex items-center gap-2 text-amber-700 text-sm">
             <AlertCircle size={16} /> {saName} has low capacity. Consider choosing a different SA.
           </div>
@@ -889,7 +887,7 @@ export default function App() {
               options={sasSortedByCapacity.map(sa => ({
                 label: sa.name,
                 value: sa.name,
-                badge: <CapacityBadge score={getCapacityScore(sa.name)} />
+                badge: <CapacityBadge count={sa.preActivation + sa.earlyStage} />
               }))}
             />
           </div>

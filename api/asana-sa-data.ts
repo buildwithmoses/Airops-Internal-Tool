@@ -8,15 +8,18 @@ const USE_CASE_PHASE_GID = '1213301486281125';
 const CUSTOMER_FIELD_GID = '1213193818616005';
 
 // Classify into pipeline stages
-function classifyStage(customerStatus: string | null, useCasePhase: string | null): 'early' | 'mid' | 'late' {
+function classifyStage(customerStatus: string | null, useCasePhase: string | null): 'preActivation' | 'early' | 'mid' | 'late' {
   const phase = useCasePhase?.toLowerCase() || '';
   const status = customerStatus?.toLowerCase() || '';
 
-  if (phase.includes('pre-activation') || phase.includes('intake')) return 'early';
+  // Pre-activation is its own category (separate from early/activation)
+  if (phase.includes('pre-activation') || status.includes('pre-activation')) return 'preActivation';
+
+  if (phase.includes('intake')) return 'early';
   if (phase.includes('calibration') || phase.includes('go-live')) return 'mid';
   if (phase.includes('maintenance')) return 'late';
 
-  if (status.includes('pre-activation') || status.includes('activation')) return 'early';
+  if (status.includes('activation')) return 'early';
   if (status.includes('live but syncs')) return 'mid';
   if (status.includes('async') || status.includes('churned')) return 'late';
 
@@ -77,7 +80,7 @@ export default async function handler(req: any, res: any) {
     const tasks = await fetchAllTasks();
 
     // Group by task ASSIGNEE (the SA assigned to each task/client)
-    const saMap: Record<string, { activeProjects: number; earlyStage: number; midStage: number; lateStage: number; clients: string[] }> = {};
+    const saMap: Record<string, { activeProjects: number; preActivation: number; earlyStage: number; midStage: number; lateStage: number; clients: string[] }> = {};
 
     for (const task of tasks) {
       if (task.completed) continue;
@@ -100,12 +103,13 @@ export default async function handler(req: any, res: any) {
       }
 
       if (!saMap[saName]) {
-        saMap[saName] = { activeProjects: 0, earlyStage: 0, midStage: 0, lateStage: 0, clients: [] };
+        saMap[saName] = { activeProjects: 0, preActivation: 0, earlyStage: 0, midStage: 0, lateStage: 0, clients: [] };
       }
 
       saMap[saName].activeProjects++;
       const stage = classifyStage(customerStatus, useCasePhase);
-      if (stage === 'early') saMap[saName].earlyStage++;
+      if (stage === 'preActivation') saMap[saName].preActivation++;
+      else if (stage === 'early') saMap[saName].earlyStage++;
       else if (stage === 'mid') saMap[saName].midStage++;
       else saMap[saName].lateStage++;
 
@@ -117,6 +121,7 @@ export default async function handler(req: any, res: any) {
       .map(([name, data]) => ({
         name,
         activeProjects: data.activeProjects,
+        preActivation: data.preActivation,
         earlyStage: data.earlyStage,
         midStage: data.midStage,
         lateStage: data.lateStage,
