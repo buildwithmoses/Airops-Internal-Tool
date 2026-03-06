@@ -248,6 +248,8 @@ const CustomSelect = ({ value, onChange, options, placeholder, className, labelC
 };
 
 export default function App() {
+  const [authState, setAuthState] = useState<'checking' | 'authenticated' | 'unauthenticated'>('checking');
+  const [currentUser, setCurrentUser] = useState<{ email: string; name: string; picture: string } | null>(null);
   const [view, setView] = useState<'schedule' | 'all' | 'capacity' | 'settings'>('schedule');
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [kickoffs, setKickoffs] = useState<Kickoff[]>(SEED_KICKOFFS);
@@ -257,28 +259,41 @@ export default function App() {
   const [aes, setAes] = useState<string[]>(INITIAL_AES);
   const [maxSlots, setMaxSlots] = useState(10);
 
-  // Fetch kickoffs from Google Calendar
+  // Check authentication on load
   useEffect(() => {
-    // Check if just connected via OAuth redirect
     if (window.location.search.includes('gcal=connected')) {
       window.history.replaceState({}, '', '/');
     }
+    fetch('/api/auth-check')
+      .then(res => res.json())
+      .then(json => {
+        if (json.authenticated) {
+          setAuthState('authenticated');
+          setCurrentUser(json.user);
+          setGcalConnected(true);
+        } else {
+          setAuthState('unauthenticated');
+        }
+      })
+      .catch(() => setAuthState('unauthenticated'));
+  }, []);
+
+  // Fetch kickoffs from Google Calendar (only when authenticated)
+  useEffect(() => {
+    if (authState !== 'authenticated') return;
     fetch('/api/google-calendar-kickoffs')
       .then(res => res.json())
       .then(json => {
         if (json.connected && json.kickoffs?.length > 0) {
-          setGcalConnected(true);
           setKickoffs(prev => {
             const existingIds = new Set(prev.map(k => k.id));
             const newKickoffs = json.kickoffs.filter((k: any) => !existingIds.has(k.id));
             return [...prev, ...newKickoffs];
           });
-        } else if (json.connected) {
-          setGcalConnected(true);
         }
       })
       .catch(() => {});
-  }, []);
+  }, [authState]);
 
   // Fetch SA data from Asana API
   useEffect(() => {
@@ -1002,6 +1017,47 @@ export default function App() {
     setView(newView);
     setMobileSidebarOpen(false);
   };
+
+  // Auth gate - show login screen if not authenticated
+  if (authState === 'checking') {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-[#F8FFFA]">
+        <div className="text-center">
+          <div className="w-8 h-8 border-2 border-[#008c44] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-[#676c79] text-sm font-sans">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (authState === 'unauthenticated') {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-[#F8FFFA]">
+        <div className="text-center max-w-md mx-auto p-8">
+          <img
+            src="https://mms.businesswire.com/media/20251110823725/en/2637492/4/AirOps_logo.jpg"
+            alt="AirOps Logo"
+            className="h-10 mx-auto mb-6"
+          />
+          <h1 className="text-2xl font-sans font-bold text-[#000d05] mb-2">SA Command Center</h1>
+          <p className="text-[#676c79] text-sm mb-8">Sign in with your AirOps Google account to access the dashboard.</p>
+          <a
+            href="/api/google-auth"
+            className="inline-flex items-center gap-3 px-6 py-3 bg-[#000d05] text-white font-sans text-sm hover:bg-[#1a2a1f] transition-colors"
+          >
+            <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
+              <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/>
+              <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 009 18z" fill="#34A853"/>
+              <path d="M3.964 10.71A5.41 5.41 0 013.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 000 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/>
+              <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 00.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z" fill="#EA4335"/>
+            </svg>
+            Sign in with Google
+          </a>
+          <p className="text-[#676c79] text-xs mt-4">Only @airops.com accounts are allowed.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen bg-white font-sans">
