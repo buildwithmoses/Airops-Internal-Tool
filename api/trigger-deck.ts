@@ -35,7 +35,7 @@ export default async function handler(req: any, res: any) {
       const token = process.env.SLACK_BOT_TOKEN;
       if (!token) return sendJson(res, 500, { error: 'SLACK_BOT_TOKEN not configured' });
 
-      const members: { id: string; real_name: string }[] = [];
+      const members: { id: string; real_name: string; avatar: string }[] = [];
       let cursor = '';
 
       do {
@@ -52,7 +52,7 @@ export default async function handler(req: any, res: any) {
 
         for (const m of data.members) {
           if (m.deleted || m.is_bot || m.id === 'USLACKBOT') continue;
-          members.push({ id: m.id, real_name: m.real_name || m.name });
+          members.push({ id: m.id, real_name: m.real_name || m.name, avatar: m.profile?.image_32 || '' });
         }
 
         cursor = data.response_metadata?.next_cursor || '';

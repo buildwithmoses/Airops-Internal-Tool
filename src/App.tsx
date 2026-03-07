@@ -56,6 +56,7 @@ interface DeckResult {
 interface SlackUser {
   id: string;
   real_name: string;
+  avatar: string;
 }
 
 interface SA {
@@ -209,7 +210,7 @@ const ProgressBar = ({ current, total, compact = false }: { current: number, tot
 interface CustomSelectProps {
   value: string;
   onChange: (value: string) => void;
-  options: { label: string; value: string; badge?: React.ReactNode }[];
+  options: { label: string; value: string; badge?: React.ReactNode; image?: string }[];
   placeholder?: string;
   className?: string;
   labelClassName?: string;
@@ -248,8 +249,13 @@ const CustomSelect = ({ value, onChange, options, placeholder, className, labelC
         onClick={() => setIsOpen(!isOpen)}
         className={`w-full px-4 py-2 bg-white border border-[#d4e8da] text-sm flex items-center justify-between gap-2 hover:border-[#008c44] transition-colors ${labelClassName || 'mono-label'}`}
       >
-        <span className="truncate">
-          {loading ? 'Loading...' : selectedOption ? selectedOption.label : placeholder}
+        <span className="truncate flex items-center gap-2">
+          {loading ? 'Loading...' : selectedOption ? (
+            <>
+              {selectedOption.image && <img src={selectedOption.image} alt="" className="w-5 h-5 rounded-full flex-shrink-0" />}
+              {selectedOption.label}
+            </>
+          ) : placeholder}
         </span>
         <ChevronRight size={14} className={`transition-transform ${isOpen ? 'rotate-90' : ''} text-[#a5aab6]`} />
       </button>
@@ -288,9 +294,10 @@ const CustomSelect = ({ value, onChange, options, placeholder, className, labelC
                       onChange(option.value);
                       setIsOpen(false);
                     }}
-                    className={`w-full px-4 py-2 text-left text-sm flex items-center justify-between hover:bg-[#f0faf4] transition-colors ${value === option.value ? 'bg-[#f0faf4] font-bold' : ''} ${labelClassName || 'mono-label'}`}
+                    className={`w-full px-4 py-2 text-left text-sm flex items-center gap-2 hover:bg-[#f0faf4] transition-colors ${value === option.value ? 'bg-[#f0faf4] font-bold' : ''} ${labelClassName || 'mono-label'}`}
                   >
-                    <span>{option.label}</span>
+                    {option.image && <img src={option.image} alt="" className="w-5 h-5 rounded-full flex-shrink-0" />}
+                    <span className="flex-1">{option.label}</span>
                     {option.badge}
                   </button>
                 ))
@@ -1575,11 +1582,11 @@ export default function App() {
             >
               {/* Header */}
               <div className="flex items-center justify-between px-6 py-4 border-b border-[#ecedef]">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 bg-[#00ff64] flex items-center justify-center">
-                    <ArrowRight size={16} className="text-[#000d05]" />
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 bg-[#CCFFE0] flex items-center justify-center rounded">
+                    <FileText size={18} className="text-[#008c44]" />
                   </div>
-                  <h2 className="text-lg font-serif text-[#000d05]">Deck Prep Agent</h2>
+                  <h2 className="text-lg font-bold text-[#000d05]">Deck Details</h2>
                 </div>
                 {!agentRunId && (
                   <button onClick={() => setShowAgentModal(false)} className="text-[#676c79] hover:text-[#000d05]">
@@ -1589,7 +1596,7 @@ export default function App() {
               </div>
 
               {/* Body */}
-              <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+              <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
                 {agentResult ? (
                   /* Success State */
                   <div className="space-y-4">
@@ -1597,7 +1604,7 @@ export default function App() {
                       <CheckCircle2 size={20} />
                       <span className="text-sm font-bold">Deck created successfully</span>
                     </div>
-                    <div className="p-4 bg-[#F8FFFA] border border-[#d4e8da] space-y-3">
+                    <div className="p-4 bg-[#F8FFFA] border border-[#d4e8da] rounded space-y-3">
                       <p className="text-sm font-bold text-[#000d05]">{agentResult.clientName}</p>
                       <a
                         href={agentResult.deckUrl}
@@ -1622,7 +1629,7 @@ export default function App() {
                     </div>
                     <button
                       onClick={() => setShowAgentModal(false)}
-                      className="w-full bg-[#000d05] text-white py-3 font-sans font-bold text-sm hover:bg-[#008c44] transition-colors"
+                      className="w-full bg-[#008c44] text-white py-3 font-sans font-bold text-sm rounded hover:opacity-90 transition-opacity"
                     >
                       Done
                     </button>
@@ -1636,67 +1643,68 @@ export default function App() {
                 ) : (
                   /* Form State */
                   <>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <label className="mono-label text-[#676c79]">AE NAME</label>
-                        <CustomSelect
-                          value={agentForm.aeName}
-                          onChange={(v) => setAgentForm(f => ({ ...f, aeName: v }))}
-                          options={slackUsers.map(u => ({ label: u.real_name, value: u.real_name }))}
-                          placeholder="Select AE..."
-                          labelClassName="font-sans"
-                          searchable
-                          loading={slackUsersLoading}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <label className="mono-label text-[#676c79]">SE NAME</label>
-                        <CustomSelect
-                          value={agentForm.seName}
-                          onChange={(v) => setAgentForm(f => ({ ...f, seName: v }))}
-                          options={slackUsers.map(u => ({ label: u.real_name, value: u.real_name }))}
-                          placeholder="Select SE..."
-                          labelClassName="font-sans"
-                          searchable
-                          loading={slackUsersLoading}
-                        />
-                      </div>
+                    <div className="space-y-1.5">
+                      <label className="text-sm font-bold text-[#000d05]">Account Executive</label>
+                      <CustomSelect
+                        value={agentForm.aeName}
+                        onChange={(v) => setAgentForm(f => ({ ...f, aeName: v }))}
+                        options={slackUsers.map(u => ({ label: u.real_name, value: u.real_name, image: u.avatar }))}
+                        placeholder="Select the AE"
+                        labelClassName="font-sans"
+                        searchable
+                        loading={slackUsersLoading}
+                      />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <label className="mono-label text-[#676c79]">CS LEAD</label>
-                        <CustomSelect
-                          value={agentForm.csLead}
-                          onChange={(v) => setAgentForm(f => ({ ...f, csLead: v }))}
-                          options={slackUsers.map(u => ({ label: u.real_name, value: u.real_name }))}
-                          placeholder="Select CS Lead..."
-                          labelClassName="font-sans"
-                          searchable
-                          loading={slackUsersLoading}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <label className="mono-label text-[#676c79]">KICKOFF DATE</label>
-                        <input
-                          type="text"
-                          value={agentForm.kickoffDate}
-                          onChange={(e) => setAgentForm(f => ({ ...f, kickoffDate: e.target.value }))}
-                          placeholder="MM/DD/YYYY"
-                          className="w-full p-3 border border-[#d4e8da] focus:border-[#008c44] outline-none text-sm"
-                        />
-                      </div>
+                    <div className="space-y-1.5">
+                      <label className="text-sm font-bold text-[#000d05]">SA</label>
+                      <CustomSelect
+                        value={agentForm.seName}
+                        onChange={(v) => setAgentForm(f => ({ ...f, seName: v }))}
+                        options={slackUsers.map(u => ({ label: u.real_name, value: u.real_name, image: u.avatar }))}
+                        placeholder="Select an SA"
+                        labelClassName="font-sans"
+                        searchable
+                        loading={slackUsersLoading}
+                      />
                     </div>
 
-                    <div className="space-y-2">
-                      <label className="mono-label text-[#676c79]">NOTION CONTENT</label>
+                    <div className="space-y-1.5">
+                      <label className="text-sm font-bold text-[#000d05]">CS Lead</label>
+                      <CustomSelect
+                        value={agentForm.csLead}
+                        onChange={(v) => setAgentForm(f => ({ ...f, csLead: v }))}
+                        options={slackUsers.map(u => ({ label: u.real_name, value: u.real_name, image: u.avatar }))}
+                        placeholder="Select a CS Lead"
+                        labelClassName="font-sans"
+                        searchable
+                        loading={slackUsersLoading}
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-sm font-bold text-[#000d05]">
+                        Kickoff Date <span className="font-normal text-[#a5aab6]">(optional)</span>
+                      </label>
+                      <input
+                        type="date"
+                        value={agentForm.kickoffDate}
+                        onChange={(e) => setAgentForm(f => ({ ...f, kickoffDate: e.target.value }))}
+                        className="w-full px-4 py-2 border border-[#d4e8da] focus:border-[#008c44] outline-none text-sm rounded-sm"
+                      />
+                      <p className="text-xs text-[#a5aab6]">Leave blank to auto-detect from Calendar/Email.</p>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-sm font-bold text-[#000d05]">Notion Page Content</label>
                       <textarea
-                        rows={8}
+                        rows={6}
                         value={agentForm.notionContent}
                         onChange={(e) => setAgentForm(f => ({ ...f, notionContent: e.target.value }))}
-                        placeholder="Paste intake checklist content here..."
-                        className="w-full p-3 border border-[#d4e8da] focus:border-[#008c44] outline-none text-sm font-mono"
+                        placeholder="Copy & paste your Notion intake page content"
+                        className="w-full px-4 py-3 border border-[#d4e8da] focus:border-[#008c44] outline-none text-sm rounded-sm"
                       />
+                      <p className="text-xs text-[#a5aab6]">Copy & paste your Notion intake page content.</p>
                     </div>
 
                     {agentError && (
@@ -1706,20 +1714,28 @@ export default function App() {
                       </div>
                     )}
 
-                    <button
-                      onClick={submitAgentForm}
-                      disabled={deckGenerating === selectedKickoff?.id || !agentForm.aeName || !agentForm.kickoffDate}
-                      className="w-full bg-[#00ff64] text-[#000d05] py-3 font-sans font-bold text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
-                    >
-                      {deckGenerating === selectedKickoff?.id ? (
-                        <span className="flex items-center justify-center gap-2">
-                          <Loader2 size={16} className="animate-spin" />
-                          Triggering...
-                        </span>
-                      ) : (
-                        'Run Agent'
-                      )}
-                    </button>
+                    <div className="flex items-center gap-3 pt-2">
+                      <button
+                        onClick={() => setShowAgentModal(false)}
+                        className="flex-1 py-3 border border-[#d4e8da] text-[#000d05] font-sans font-bold text-sm rounded-sm hover:bg-[#f0faf4] transition-colors"
+                      >
+                        Back
+                      </button>
+                      <button
+                        onClick={submitAgentForm}
+                        disabled={deckGenerating === selectedKickoff?.id || !agentForm.aeName}
+                        className="flex-1 py-3 bg-[#008c44] text-white font-sans font-bold text-sm rounded-sm hover:opacity-90 transition-opacity disabled:opacity-50"
+                      >
+                        {deckGenerating === selectedKickoff?.id ? (
+                          <span className="flex items-center justify-center gap-2">
+                            <Loader2 size={16} className="animate-spin" />
+                            Submitting...
+                          </span>
+                        ) : (
+                          'Submit'
+                        )}
+                      </button>
+                    </div>
                   </>
                 )}
               </div>
