@@ -1,17 +1,3 @@
-import { tasks, runs } from '@trigger.dev/sdk/v3';
-import { Redis } from '@upstash/redis';
-
-let _redis: Redis | null = null;
-function getRedis() {
-  if (!_redis) {
-    _redis = new Redis({
-      url: process.env.KV_REST_API_URL!,
-      token: process.env.KV_REST_API_TOKEN!,
-    });
-  }
-  return _redis;
-}
-
 function sendJson(res: any, status: number, body: any) {
   res.statusCode = status;
   res.setHeader('Content-Type', 'application/json');
@@ -29,6 +15,14 @@ async function readBody(req: any): Promise<string> {
 
 function getParams(req: any) {
   return new URL(req.url, `http://${req.headers.host}`).searchParams;
+}
+
+async function getRedis() {
+  const { Redis } = await import('@upstash/redis');
+  return new Redis({
+    url: process.env.KV_REST_API_URL!,
+    token: process.env.KV_REST_API_TOKEN!,
+  });
 }
 
 export default async function handler(req: any, res: any) {
@@ -74,6 +68,7 @@ export default async function handler(req: any, res: any) {
       const payload = JSON.parse(await readBody(req));
       if (!payload.kickoffId) return sendJson(res, 400, { error: 'Missing kickoffId' });
 
+      const { tasks } = await import('@trigger.dev/sdk/v3');
       const handle = await tasks.trigger('deckprep-with-updates', {
         aeName: payload.aeName,
         seName: payload.seName,
@@ -96,10 +91,12 @@ export default async function handler(req: any, res: any) {
       const kickoffId = params.get('kickoffId');
       if (!runId) return sendJson(res, 400, { error: 'Missing runId' });
 
+      const { runs } = await import('@trigger.dev/sdk/v3');
       const run = await runs.retrieve(runId);
 
       if (run.status === 'COMPLETED' && run.output && kickoffId) {
-        await getRedis().set(`kickoff-deck:${kickoffId}`, JSON.stringify(run.output));
+        const redis = await getRedis();
+        await redis.set(`kickoff-deck:${kickoffId}`, JSON.stringify(run.output));
       }
 
       return sendJson(res, 200, { status: run.status, output: run.output || null });
@@ -111,7 +108,8 @@ export default async function handler(req: any, res: any) {
       const kickoffId = getParams(req).get('kickoffId');
       if (!kickoffId) return sendJson(res, 400, { error: 'Missing kickoffId' });
 
-      const raw = await getRedis().get(`kickoff-deck:${kickoffId}`);
+      const redis = await getRedis();
+      const raw = await redis.get(`kickoff-deck:${kickoffId}`);
       if (!raw) return sendJson(res, 200, { result: null });
       const result = typeof raw === 'string' ? JSON.parse(raw) : raw;
       return sendJson(res, 200, { result });
