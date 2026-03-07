@@ -71,6 +71,33 @@ interface SA {
 
 // --- Constants & Seed Data ---
 
+// Pod → SA Lead mapping
+const SA_POD_MAP: Record<string, { pod: string; lead: string }> = {
+  // Pod Sqod (Richard's Pod)
+  "Anton O'Malley": { pod: "Pod Sqod", lead: "Richard Li" },
+  "Henry Moses Jr": { pod: "Pod Sqod", lead: "Richard Li" },
+  "Jeremy Kao": { pod: "Pod Sqod", lead: "Richard Li" },
+  "John Sellers": { pod: "Pod Sqod", lead: "Richard Li" },
+  "Palmer Jones": { pod: "Pod Sqod", lead: "Richard Li" },
+  "Richard Li": { pod: "Pod Sqod", lead: "Richard Li" },
+  // Melanie's Pod
+  "Aaron Lit": { pod: "Melanie's Pod", lead: "Melanie Dell'Olio" },
+  "AJ Diaz": { pod: "Melanie's Pod", lead: "Melanie Dell'Olio" },
+  "Diana Shiling": { pod: "Melanie's Pod", lead: "Melanie Dell'Olio" },
+  "Elmi Abdullahi": { pod: "Melanie's Pod", lead: "Melanie Dell'Olio" },
+  "Henry Young": { pod: "Melanie's Pod", lead: "Melanie Dell'Olio" },
+  "Melanie Dell'Olio": { pod: "Melanie's Pod", lead: "Melanie Dell'Olio" },
+  "William Reed": { pod: "Melanie's Pod", lead: "Melanie Dell'Olio" },
+  "Zoe Febrero": { pod: "Melanie's Pod", lead: "Melanie Dell'Olio" },
+  // Andreea's Pod
+  "Andreea Volzer": { pod: "Andreea's Pod", lead: "Andreea Volzer" },
+  "Arnett Shen": { pod: "Andreea's Pod", lead: "Andreea Volzer" },
+  "Joel Fazecas": { pod: "Andreea's Pod", lead: "Andreea Volzer" },
+  "Shahbaz Mahmood": { pod: "Andreea's Pod", lead: "Andreea Volzer" },
+};
+
+const getSALead = (saName: string): string | null => SA_POD_MAP[saName]?.lead || null;
+
 const STANDARD_TASKS = [
   "AEO Workspace ID - UPGRADE",
   "Set Tasks in Admin",
@@ -1139,6 +1166,17 @@ export default function App() {
           </div>
 
           <div className="space-y-2">
+            <label className="mono-label text-[#676c79]">SA Lead</label>
+            <div className="w-full p-3 border border-[#d4e8da] bg-[#F8FFFA] text-sm">
+              {getSALead(saName) ? (
+                <span className="font-sans">{getSALead(saName)} <span className="text-[#676c79]">({SA_POD_MAP[saName]?.pod})</span></span>
+              ) : (
+                <span className="text-[#a5aab6] italic">No pod assigned</span>
+              )}
+            </div>
+          </div>
+
+          <div className="space-y-2">
             <label className="mono-label text-[#676c79]">Kickoff Date</label>
             <input
               type="date"
@@ -1232,6 +1270,14 @@ export default function App() {
             <div className="space-y-1">
               <label className="mono-label text-[#a5aab6]">ASSIGNED SA</label>
               <p className="text-sm font-medium">{selectedKickoff.saName}</p>
+            </div>
+            <div className="space-y-1">
+              <label className="mono-label text-[#a5aab6]">SA LEAD</label>
+              <p className="text-sm font-medium">{getSALead(selectedKickoff.saName) || <span className="text-[#a5aab6] italic">—</span>}</p>
+            </div>
+            <div className="space-y-1">
+              <label className="mono-label text-[#a5aab6]">POD</label>
+              <p className="text-sm font-medium">{SA_POD_MAP[selectedKickoff.saName]?.pod || <span className="text-[#a5aab6] italic">—</span>}</p>
             </div>
           </div>
 
