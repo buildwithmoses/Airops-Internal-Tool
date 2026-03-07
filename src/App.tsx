@@ -18,7 +18,9 @@ import {
   ArrowRight,
   LayoutGrid,
   Menu,
-  LogOut
+  LogOut,
+  Loader2,
+  FileText
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -54,13 +56,15 @@ interface SA {
 // --- Constants & Seed Data ---
 
 const STANDARD_TASKS = [
-  "Intro email sent to customer",
-  "Kickoff agenda shared",
-  "Internal prep call completed",
-  "SA briefed on account",
-  "Customer confirmed attendance",
-  "Tool access provisioned",
-  "Success metrics defined"
+  "AEO Workspace ID - UPGRADE",
+  "Set Tasks in Admin",
+  "Intake Checklist Sent (AE)",
+  "Internal Sync with AE (add Lead)",
+  "Kickoff Booked (AE)",
+  "Intro Email Sent? (AE)",
+  "Deck Created",
+  "Slack Channel Created",
+  "Add Hubspot ID to Admin"
 ];
 
 const INITIAL_SAS: SA[] = [
@@ -362,6 +366,8 @@ export default function App() {
   const [filterStatus, setFilterStatus] = useState<Status | 'ALL'>('ALL');
   const [filterSA, setFilterSA] = useState<string | 'ALL'>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
+  const [deckGenerating, setDeckGenerating] = useState<string | null>(null);
+  const [deckGenerated, setDeckGenerated] = useState<Set<string>>(new Set());
 
   const nextWeeks = useMemo(() => getNextWeeks(), []);
 
@@ -409,7 +415,7 @@ export default function App() {
         // Auto-update status based on tasks
         let newStatus = k.status;
         const completedCount = newTasks.filter(t => t).length;
-        if (completedCount === 7) newStatus = 'COMPLETE';
+        if (completedCount === STANDARD_TASKS.length) newStatus = 'COMPLETE';
         else if (completedCount > 0 && k.status === 'NOT STARTED') newStatus = 'IN PROGRESS';
 
         const updated = { ...k, tasks: newTasks, status: newStatus };
@@ -435,7 +441,7 @@ export default function App() {
     const kickoff: Kickoff = {
       ...newKickoff,
       id: Math.random().toString(36).substr(2, 9),
-      tasks: new Array(7).fill(false),
+      tasks: new Array(STANDARD_TASKS.length).fill(false),
       booked: true,
       createdAt: Date.now()
     };
@@ -553,12 +559,12 @@ export default function App() {
                         </span>
                         <div className="flex items-center gap-2">
                           <span className="mono-label text-[#676c79]">
-                            {k.tasks.filter(t => t).length}/7
+                            {k.tasks.filter(t => t).length}/{STANDARD_TASKS.length}
                           </span>
                           <div className="w-12 h-1 bg-[#dfeae3]">
                             <div
                               className="h-full bg-[#008c44]"
-                              style={{ width: `${(k.tasks.filter(t => t).length / 7) * 100}%` }}
+                              style={{ width: `${(k.tasks.filter(t => t).length / STANDARD_TASKS.length) * 100}%` }}
                             />
                           </div>
                         </div>
@@ -771,7 +777,7 @@ export default function App() {
                 <td className="p-4 text-sm font-mono">{k.week}</td>
                 <td className="p-4"><StatusBadge status={k.status} /></td>
                 <td className="p-4 w-32">
-                  <ProgressBar current={k.tasks.filter(t => t).length} total={7} compact />
+                  <ProgressBar current={k.tasks.filter(t => t).length} total={STANDARD_TASKS.length} compact />
                 </td>
                 <td className="p-4 text-center">
                   {k.booked ? <Check size={16} className="text-[#008c44] mx-auto" /> : <span className="text-[#a5aab6]">—</span>}
@@ -1039,13 +1045,13 @@ export default function App() {
           {/* Progress Summary */}
           <div className="bg-[#F8FFFA] p-4 border border-[#d4e8da]">
             <div className="flex justify-between items-center mb-2">
-              <span className="mono-label text-[#008c44]">{completedTasks}/7 TASKS COMPLETE</span>
-              <span className="mono-label text-[#676c79]">{Math.round((completedTasks/7)*100)}%</span>
+              <span className="mono-label text-[#008c44]">{completedTasks}/{STANDARD_TASKS.length} TASKS COMPLETE</span>
+              <span className="mono-label text-[#676c79]">{Math.round((completedTasks/STANDARD_TASKS.length)*100)}%</span>
             </div>
             <div className="h-2 bg-[#dfeae3]">
-              <div 
-                className="h-full bg-[#008c44] transition-all duration-500" 
-                style={{ width: `${(completedTasks/7)*100}%` }}
+              <div
+                className="h-full bg-[#008c44] transition-all duration-500"
+                style={{ width: `${(completedTasks/STANDARD_TASKS.length)*100}%` }}
               />
             </div>
           </div>
@@ -1083,10 +1089,65 @@ export default function App() {
             </div>
           </div>
 
+          {/* Actions */}
+          <div className="space-y-3">
+            <label className="mono-label text-[#676c79]">ACTIONS</label>
+            <button
+              onClick={async () => {
+                if (deckGenerated.has(selectedKickoff.id)) return;
+                setDeckGenerating(selectedKickoff.id);
+                try {
+                  const res = await fetch('/api/trigger-deck', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      kickoffId: selectedKickoff.id,
+                      clientName: selectedKickoff.customerName,
+                      aeName: selectedKickoff.aeName,
+                      saName: selectedKickoff.saName,
+                      week: selectedKickoff.week,
+                    }),
+                  });
+                  if (!res.ok) throw new Error('Failed to trigger deck creation');
+                  setDeckGenerated(prev => new Set(prev).add(selectedKickoff.id));
+                } catch (err) {
+                  console.error('Deck generation failed:', err);
+                } finally {
+                  setDeckGenerating(null);
+                }
+              }}
+              disabled={deckGenerating === selectedKickoff.id || deckGenerated.has(selectedKickoff.id)}
+              className={`w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium transition-all ${
+                deckGenerated.has(selectedKickoff.id)
+                  ? 'bg-[#F8FFFA] border border-[#008c44] text-[#008c44] cursor-default'
+                  : deckGenerating === selectedKickoff.id
+                    ? 'bg-[#e8e8e8] border border-[#d4e8da] text-[#676c79] cursor-wait'
+                    : 'bg-[#000d05] text-white hover:bg-[#008c44] cursor-pointer'
+              }`}
+            >
+              {deckGenerated.has(selectedKickoff.id) ? (
+                <>
+                  <CheckCircle2 size={16} />
+                  Deck Created
+                </>
+              ) : deckGenerating === selectedKickoff.id ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  Generating Deck...
+                </>
+              ) : (
+                <>
+                  <FileText size={16} />
+                  Create Kickoff Deck
+                </>
+              )}
+            </button>
+          </div>
+
           {/* Notes */}
           <div className="space-y-2">
             <label className="mono-label text-[#676c79]">NOTES</label>
-            <textarea 
+            <textarea
               rows={4}
               value={selectedKickoff.notes}
               onChange={(e) => handleUpdateKickoff(selectedKickoff.id, { notes: e.target.value })}
