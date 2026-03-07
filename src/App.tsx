@@ -19,7 +19,10 @@ import {
   LayoutGrid,
   Menu,
   LogOut,
-  Loader2
+  Loader2,
+  ExternalLink,
+  FileText,
+  FolderOpen
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -40,6 +43,19 @@ interface Kickoff {
   createdAt: number;
   eventDate?: string; // ISO date string from Google Calendar
   eventLink?: string; // Link to Google Calendar event
+}
+
+interface DeckResult {
+  deckUrl: string;
+  deckId: string;
+  folderId: string;
+  folderUrl: string;
+  clientName: string;
+}
+
+interface SlackUser {
+  id: string;
+  real_name: string;
 }
 
 interface SA {
@@ -366,6 +382,20 @@ export default function App() {
   const [filterSA, setFilterSA] = useState<string | 'ALL'>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [deckGenerating, setDeckGenerating] = useState<string | null>(null);
+  const [showAgentModal, setShowAgentModal] = useState(false);
+  const [slackUsers, setSlackUsers] = useState<SlackUser[]>([]);
+  const [slackUsersLoading, setSlackUsersLoading] = useState(false);
+  const [agentForm, setAgentForm] = useState({
+    aeName: '',
+    seName: '',
+    csLead: '',
+    kickoffDate: '',
+    notionContent: '',
+  });
+  const [agentRunId, setAgentRunId] = useState<string | null>(null);
+  const [agentResult, setAgentResult] = useState<DeckResult | null>(null);
+  const [agentError, setAgentError] = useState<string | null>(null);
+  const [deckResults, setDeckResults] = useState<Record<string, DeckResult>>({});
 
   const nextWeeks = useMemo(() => getNextWeeks(), []);
 
@@ -373,6 +403,99 @@ export default function App() {
     kickoffs.find(k => k.id === selectedKickoffId), 
     [kickoffs, selectedKickoffId]
   );
+
+  // Load persisted deck result when a kickoff is selected
+  useEffect(() => {
+    if (!selectedKickoffId || deckResults[selectedKickoffId]) return;
+    fetch(`/api/kickoff-deck-get?kickoffId=${selectedKickoffId}`)
+      .then(r => r.json())
+      .then(json => {
+        if (json.result) {
+          setDeckResults(prev => ({ ...prev, [selectedKickoffId]: json.result }));
+        }
+      })
+      .catch(() => {});
+  }, [selectedKickoffId]);
+
+  // Poll for agent run completion
+  useEffect(() => {
+    if (!agentRunId || !selectedKickoffId) return;
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/trigger-status?runId=${agentRunId}&kickoffId=${selectedKickoffId}`);
+        const json = await res.json();
+        if (json.status === 'COMPLETED' && json.output) {
+          setAgentResult(json.output);
+          setDeckResults(prev => ({ ...prev, [selectedKickoffId]: json.output }));
+          setAgentRunId(null);
+        } else if (json.status === 'FAILED' || json.status === 'CANCELED') {
+          setAgentError(`Agent run ${json.status.toLowerCase()}`);
+          setAgentRunId(null);
+        }
+      } catch {
+        // keep polling
+      }
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [agentRunId, selectedKickoffId]);
+
+  // Fetch Slack users when modal opens
+  useEffect(() => {
+    if (!showAgentModal || slackUsers.length > 0) return;
+    setSlackUsersLoading(true);
+    fetch('/api/slack-users')
+      .then(r => r.json())
+      .then(json => setSlackUsers(json.users || []))
+      .catch(() => {})
+      .finally(() => setSlackUsersLoading(false));
+  }, [showAgentModal]);
+
+  const openAgentModal = useCallback(() => {
+    if (!selectedKickoff) return;
+    setAgentForm({
+      aeName: selectedKickoff.aeName || '',
+      seName: '',
+      csLead: '',
+      kickoffDate: selectedKickoff.eventDate
+        ? new Date(selectedKickoff.eventDate).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })
+        : '',
+      notionContent: '',
+    });
+    setAgentResult(null);
+    setAgentError(null);
+    setAgentRunId(null);
+    setShowAgentModal(true);
+  }, [selectedKickoff]);
+
+  const submitAgentForm = useCallback(async () => {
+    if (!selectedKickoff) return;
+    setAgentError(null);
+    setDeckGenerating(selectedKickoff.id);
+    try {
+      const res = await fetch('/api/trigger-deck', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          kickoffId: selectedKickoff.id,
+          aeName: agentForm.aeName,
+          seName: agentForm.seName,
+          csLead: agentForm.csLead,
+          kickoffDate: agentForm.kickoffDate,
+          notionContent: agentForm.notionContent,
+          slackChannel: 'C0ABV8P5PUJ',
+          slackThreadTs: '1772657939.513619',
+          slackUserId: 'U09A0PWL6KW',
+        }),
+      });
+      if (!res.ok) throw new Error('Failed to trigger agent');
+      const json = await res.json();
+      setAgentRunId(json.runId);
+    } catch (err: any) {
+      setAgentError(err.message);
+    } finally {
+      setDeckGenerating(null);
+    }
+  }, [selectedKickoff, agentForm]);
 
   // Capacity Score Heuristic
   const getActiveCount = (saName: string) => {
@@ -1089,36 +1212,13 @@ export default function App() {
                   </span>
                   {task === 'Deck Created' && (
                     <button
-                      onClick={async (e) => {
+                      onClick={(e) => {
                         e.stopPropagation();
-                        setDeckGenerating(selectedKickoff.id);
-                        try {
-                          const res = await fetch('/api/trigger-deck', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                              kickoffId: selectedKickoff.id,
-                              clientName: selectedKickoff.customerName,
-                              aeName: selectedKickoff.aeName,
-                              saName: selectedKickoff.saName,
-                              week: selectedKickoff.week,
-                            }),
-                          });
-                          if (!res.ok) throw new Error('Failed to trigger agent');
-                        } catch (err) {
-                          console.error('Agent trigger failed:', err);
-                        } finally {
-                          setDeckGenerating(null);
-                        }
+                        openAgentModal();
                       }}
-                      disabled={deckGenerating === selectedKickoff.id}
-                      className="ml-auto flex items-center gap-1.5 px-3 py-1 bg-[#00ff64] text-[#000d05] text-xs font-bold hover:opacity-90 transition-opacity disabled:opacity-50 rounded-sm"
+                      className="ml-auto flex items-center gap-1.5 px-3 py-1 bg-[#00ff64] text-[#000d05] text-xs font-bold hover:opacity-90 transition-opacity rounded-sm"
                     >
-                      {deckGenerating === selectedKickoff.id ? (
-                        <Loader2 size={12} className="animate-spin" />
-                      ) : (
-                        <ArrowRight size={12} />
-                      )}
+                      <ArrowRight size={12} />
                       Use Agent
                     </button>
                   )}
@@ -1126,6 +1226,36 @@ export default function App() {
               ))}
             </div>
           </div>
+
+          {/* Deck Result */}
+          {deckResults[selectedKickoff.id] && (
+            <div className="space-y-3">
+              <label className="mono-label text-[#676c79]">DECK</label>
+              <div className="p-4 bg-[#F8FFFA] border border-[#d4e8da] space-y-2">
+                <p className="text-sm font-bold text-[#000d05]">{deckResults[selectedKickoff.id].clientName}</p>
+                <a
+                  href={deckResults[selectedKickoff.id].deckUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 text-sm text-[#008c44] hover:underline"
+                >
+                  <FileText size={14} />
+                  Open Deck
+                  <ExternalLink size={12} />
+                </a>
+                <a
+                  href={deckResults[selectedKickoff.id].folderUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 text-sm text-[#008c44] hover:underline"
+                >
+                  <FolderOpen size={14} />
+                  Open Folder
+                  <ExternalLink size={12} />
+                </a>
+              </div>
+            </div>
+          )}
 
           {/* Notes */}
           <div className="space-y-2">
@@ -1383,6 +1513,185 @@ export default function App() {
             />
             <DetailPanel />
           </>
+        )}
+      </AnimatePresence>
+
+      {/* Agent Modal */}
+      <AnimatePresence>
+        {showAgentModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40"
+            onClick={() => { if (!agentRunId) setShowAgentModal(false); }}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white max-w-2xl w-full mx-4 shadow-2xl border border-[#d4e8da] max-h-[90vh] flex flex-col"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between px-6 py-4 border-b border-[#ecedef]">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 bg-[#00ff64] flex items-center justify-center">
+                    <ArrowRight size={16} className="text-[#000d05]" />
+                  </div>
+                  <h2 className="text-lg font-serif text-[#000d05]">Deck Prep Agent</h2>
+                </div>
+                {!agentRunId && (
+                  <button onClick={() => setShowAgentModal(false)} className="text-[#676c79] hover:text-[#000d05]">
+                    <X size={18} />
+                  </button>
+                )}
+              </div>
+
+              {/* Body */}
+              <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+                {agentResult ? (
+                  /* Success State */
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 text-[#008c44]">
+                      <CheckCircle2 size={20} />
+                      <span className="text-sm font-bold">Deck created successfully</span>
+                    </div>
+                    <div className="p-4 bg-[#F8FFFA] border border-[#d4e8da] space-y-3">
+                      <p className="text-sm font-bold text-[#000d05]">{agentResult.clientName}</p>
+                      <a
+                        href={agentResult.deckUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2 text-sm text-[#008c44] hover:underline"
+                      >
+                        <FileText size={14} />
+                        Open Deck
+                        <ExternalLink size={12} />
+                      </a>
+                      <a
+                        href={agentResult.folderUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2 text-sm text-[#008c44] hover:underline"
+                      >
+                        <FolderOpen size={14} />
+                        Open Folder
+                        <ExternalLink size={12} />
+                      </a>
+                    </div>
+                    <button
+                      onClick={() => setShowAgentModal(false)}
+                      className="w-full bg-[#000d05] text-white py-3 font-sans font-bold text-sm hover:bg-[#008c44] transition-colors"
+                    >
+                      Done
+                    </button>
+                  </div>
+                ) : agentRunId ? (
+                  /* Polling State */
+                  <div className="flex flex-col items-center justify-center py-12 gap-4">
+                    <Loader2 size={32} className="animate-spin text-[#008c44]" />
+                    <p className="text-sm text-[#676c79]">Running agent... This may take a few minutes.</p>
+                  </div>
+                ) : (
+                  /* Form State */
+                  <>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="mono-label text-[#676c79]">AE NAME</label>
+                        <select
+                          value={agentForm.aeName}
+                          onChange={(e) => setAgentForm(f => ({ ...f, aeName: e.target.value }))}
+                          className="w-full p-3 border border-[#d4e8da] focus:border-[#008c44] outline-none text-sm bg-white"
+                        >
+                          <option value="">Select AE...</option>
+                          {slackUsersLoading && <option disabled>Loading...</option>}
+                          {slackUsers.map(u => (
+                            <option key={u.id} value={u.real_name}>{u.real_name}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="mono-label text-[#676c79]">SE NAME</label>
+                        <select
+                          value={agentForm.seName}
+                          onChange={(e) => setAgentForm(f => ({ ...f, seName: e.target.value }))}
+                          className="w-full p-3 border border-[#d4e8da] focus:border-[#008c44] outline-none text-sm bg-white"
+                        >
+                          <option value="">Select SE...</option>
+                          {slackUsersLoading && <option disabled>Loading...</option>}
+                          {slackUsers.map(u => (
+                            <option key={u.id} value={u.real_name}>{u.real_name}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="mono-label text-[#676c79]">CS LEAD</label>
+                        <select
+                          value={agentForm.csLead}
+                          onChange={(e) => setAgentForm(f => ({ ...f, csLead: e.target.value }))}
+                          className="w-full p-3 border border-[#d4e8da] focus:border-[#008c44] outline-none text-sm bg-white"
+                        >
+                          <option value="">Select CS Lead...</option>
+                          {slackUsersLoading && <option disabled>Loading...</option>}
+                          {slackUsers.map(u => (
+                            <option key={u.id} value={u.real_name}>{u.real_name}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="mono-label text-[#676c79]">KICKOFF DATE</label>
+                        <input
+                          type="text"
+                          value={agentForm.kickoffDate}
+                          onChange={(e) => setAgentForm(f => ({ ...f, kickoffDate: e.target.value }))}
+                          placeholder="MM/DD/YYYY"
+                          className="w-full p-3 border border-[#d4e8da] focus:border-[#008c44] outline-none text-sm"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="mono-label text-[#676c79]">NOTION CONTENT</label>
+                      <textarea
+                        rows={8}
+                        value={agentForm.notionContent}
+                        onChange={(e) => setAgentForm(f => ({ ...f, notionContent: e.target.value }))}
+                        placeholder="Paste intake checklist content here..."
+                        className="w-full p-3 border border-[#d4e8da] focus:border-[#008c44] outline-none text-sm font-mono"
+                      />
+                    </div>
+
+                    {agentError && (
+                      <div className="flex items-center gap-2 text-red-600 text-sm">
+                        <AlertCircle size={14} />
+                        {agentError}
+                      </div>
+                    )}
+
+                    <button
+                      onClick={submitAgentForm}
+                      disabled={deckGenerating === selectedKickoff?.id || !agentForm.aeName || !agentForm.kickoffDate}
+                      className="w-full bg-[#00ff64] text-[#000d05] py-3 font-sans font-bold text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
+                    >
+                      {deckGenerating === selectedKickoff?.id ? (
+                        <span className="flex items-center justify-center gap-2">
+                          <Loader2 size={16} className="animate-spin" />
+                          Triggering...
+                        </span>
+                      ) : (
+                        'Run Agent'
+                      )}
+                    </button>
+                  </>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
 
