@@ -481,8 +481,11 @@ export default function App() {
     setSlackUsersLoading(true);
     fetch('/api/trigger-deck?action=slack-users')
       .then(r => r.json())
-      .then(json => setSlackUsers(json.users || []))
-      .catch(() => {})
+      .then(json => {
+        console.log('Slack users response:', json);
+        setSlackUsers(json.users || []);
+      })
+      .catch((err) => console.error('Slack users fetch failed:', err))
       .finally(() => setSlackUsersLoading(false));
   }, [showAgentModal]);
 
