@@ -28,7 +28,10 @@ export default async function handler(req: any, res: any) {
       return sendJson(res, 400, { error: 'Missing saName' });
     }
 
-    await redis.set(`sa-notes:${saName}`, notes || '');
+    await Promise.all([
+      redis.set(`sa-notes:${saName}`, notes || ''),
+      redis.sadd('sa-notes:names', saName),
+    ]);
 
     return sendJson(res, 200, { ok: true });
   } catch (err: any) {
