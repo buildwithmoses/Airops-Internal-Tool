@@ -19,8 +19,7 @@ import {
   LayoutGrid,
   Menu,
   LogOut,
-  Loader2,
-  FileText
+  Loader2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -367,7 +366,6 @@ export default function App() {
   const [filterSA, setFilterSA] = useState<string | 'ALL'>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [deckGenerating, setDeckGenerating] = useState<string | null>(null);
-  const [deckGenerated, setDeckGenerated] = useState<Set<string>>(new Set());
 
   const nextWeeks = useMemo(() => getNextWeeks(), []);
 
@@ -1073,75 +1071,60 @@ export default function App() {
             <label className="mono-label text-[#676c79]">PRE-KICKOFF CHECKLIST</label>
             <div className="space-y-2">
               {STANDARD_TASKS.map((task, idx) => (
-                <div 
+                <div
                   key={idx}
-                  onClick={() => handleToggleTask(selectedKickoff.id, idx)}
-                  className="flex items-center gap-3 group cursor-pointer"
+                  className="flex items-center gap-3 group"
                 >
-                  <div className={`w-5 h-5 border flex items-center justify-center transition-colors ${selectedKickoff.tasks[idx] ? 'bg-[#008c44] border-[#008c44]' : 'border-[#d4e8da] group-hover:border-[#008c44]'}`}>
+                  <div
+                    onClick={() => handleToggleTask(selectedKickoff.id, idx)}
+                    className={`w-5 h-5 border flex items-center justify-center transition-colors cursor-pointer ${selectedKickoff.tasks[idx] ? 'bg-[#008c44] border-[#008c44]' : 'border-[#d4e8da] group-hover:border-[#008c44]'}`}
+                  >
                     {selectedKickoff.tasks[idx] && <Check size={14} className="text-white" />}
                   </div>
-                  <span className={`text-sm transition-all ${selectedKickoff.tasks[idx] ? 'text-[#a5aab6] line-through' : 'text-[#09090b]'}`}>
+                  <span
+                    onClick={() => handleToggleTask(selectedKickoff.id, idx)}
+                    className={`text-sm transition-all cursor-pointer ${selectedKickoff.tasks[idx] ? 'text-[#a5aab6] line-through' : 'text-[#09090b]'}`}
+                  >
                     {task}
                   </span>
+                  {task === 'Deck Created' && (
+                    <button
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        setDeckGenerating(selectedKickoff.id);
+                        try {
+                          const res = await fetch('/api/trigger-deck', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              kickoffId: selectedKickoff.id,
+                              clientName: selectedKickoff.customerName,
+                              aeName: selectedKickoff.aeName,
+                              saName: selectedKickoff.saName,
+                              week: selectedKickoff.week,
+                            }),
+                          });
+                          if (!res.ok) throw new Error('Failed to trigger agent');
+                        } catch (err) {
+                          console.error('Agent trigger failed:', err);
+                        } finally {
+                          setDeckGenerating(null);
+                        }
+                      }}
+                      disabled={deckGenerating === selectedKickoff.id}
+                      className="ml-auto flex items-center gap-1.5 px-3 py-1 bg-[#00ff64] text-[#000d05] text-xs font-bold hover:opacity-90 transition-opacity disabled:opacity-50 rounded-sm"
+                    >
+                      {deckGenerating === selectedKickoff.id ? (
+                        <Loader2 size={12} className="animate-spin" />
+                      ) : (
+                        <ArrowRight size={12} />
+                      )}
+                      Use Agent
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
-          </div>
-
-          {/* Actions */}
-          <div className="space-y-3">
-            <label className="mono-label text-[#676c79]">ACTIONS</label>
-            <button
-              onClick={async () => {
-                if (deckGenerated.has(selectedKickoff.id)) return;
-                setDeckGenerating(selectedKickoff.id);
-                try {
-                  const res = await fetch('/api/trigger-deck', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                      kickoffId: selectedKickoff.id,
-                      clientName: selectedKickoff.customerName,
-                      aeName: selectedKickoff.aeName,
-                      saName: selectedKickoff.saName,
-                      week: selectedKickoff.week,
-                    }),
-                  });
-                  if (!res.ok) throw new Error('Failed to trigger deck creation');
-                  setDeckGenerated(prev => new Set(prev).add(selectedKickoff.id));
-                } catch (err) {
-                  console.error('Deck generation failed:', err);
-                } finally {
-                  setDeckGenerating(null);
-                }
-              }}
-              disabled={deckGenerating === selectedKickoff.id || deckGenerated.has(selectedKickoff.id)}
-              className={`w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium transition-all ${
-                deckGenerated.has(selectedKickoff.id)
-                  ? 'bg-[#F8FFFA] border border-[#008c44] text-[#008c44] cursor-default'
-                  : deckGenerating === selectedKickoff.id
-                    ? 'bg-[#e8e8e8] border border-[#d4e8da] text-[#676c79] cursor-wait'
-                    : 'bg-[#000d05] text-white hover:bg-[#008c44] cursor-pointer'
-              }`}
-            >
-              {deckGenerated.has(selectedKickoff.id) ? (
-                <>
-                  <CheckCircle2 size={16} />
-                  Deck Created
-                </>
-              ) : deckGenerating === selectedKickoff.id ? (
-                <>
-                  <Loader2 size={16} className="animate-spin" />
-                  Generating Deck...
-                </>
-              ) : (
-                <>
-                  <FileText size={16} />
-                  Create Kickoff Deck
-                </>
-              )}
-            </button>
           </div>
 
           {/* Notes */}
