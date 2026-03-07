@@ -213,11 +213,19 @@ interface CustomSelectProps {
   placeholder?: string;
   className?: string;
   labelClassName?: string;
+  searchable?: boolean;
+  loading?: boolean;
 }
 
-const CustomSelect = ({ value, onChange, options, placeholder, className, labelClassName }: CustomSelectProps) => {
+const CustomSelect = ({ value, onChange, options, placeholder, className, labelClassName, searchable, loading }: CustomSelectProps) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const searchRef = useRef<HTMLInputElement>(null);
   const selectedOption = options.find(o => o.value === value);
+
+  const filtered = searchable && search
+    ? options.filter(o => o.label.toLowerCase().includes(search.toLowerCase()))
+    : options;
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -227,39 +235,67 @@ const CustomSelect = ({ value, onChange, options, placeholder, className, labelC
     return () => document.removeEventListener('click', handleClickOutside);
   }, [isOpen]);
 
+  useEffect(() => {
+    if (isOpen && searchable && searchRef.current) {
+      searchRef.current.focus();
+    }
+    if (!isOpen) setSearch('');
+  }, [isOpen, searchable]);
+
   return (
     <div className={`relative ${className}`} onClick={(e) => e.stopPropagation()}>
-      <button 
+      <button
         onClick={() => setIsOpen(!isOpen)}
         className={`w-full px-4 py-2 bg-white border border-[#d4e8da] text-sm flex items-center justify-between gap-2 hover:border-[#008c44] transition-colors ${labelClassName || 'mono-label'}`}
       >
         <span className="truncate">
-          {selectedOption ? selectedOption.label : placeholder}
+          {loading ? 'Loading...' : selectedOption ? selectedOption.label : placeholder}
         </span>
         <ChevronRight size={14} className={`transition-transform ${isOpen ? 'rotate-90' : ''} text-[#a5aab6]`} />
       </button>
 
       <AnimatePresence>
         {isOpen && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="absolute top-full left-0 w-full bg-white border border-[#d4e8da] z-50 shadow-xl mt-1 max-h-60 overflow-y-auto"
+            className="absolute top-full left-0 w-full bg-white border border-[#d4e8da] z-50 shadow-xl mt-1 max-h-60 overflow-hidden flex flex-col"
           >
-            {options.map((option) => (
-              <button
-                key={option.value}
-                onClick={() => {
-                  onChange(option.value);
-                  setIsOpen(false);
-                }}
-                className={`w-full px-4 py-2 text-left text-sm flex items-center justify-between hover:bg-[#f0faf4] transition-colors ${value === option.value ? 'bg-[#f0faf4] font-bold' : ''} ${labelClassName || 'mono-label'}`}
-              >
-                <span>{option.label}</span>
-                {option.badge}
-              </button>
-            ))}
+            {searchable && (
+              <div className="p-2 border-b border-[#ecedef]">
+                <div className="flex items-center gap-2 px-2 py-1.5 bg-[#f8f8f8] border border-[#d4e8da]">
+                  <Search size={14} className="text-[#a5aab6] flex-shrink-0" />
+                  <input
+                    ref={searchRef}
+                    type="text"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Search..."
+                    className="w-full bg-transparent outline-none text-sm"
+                  />
+                </div>
+              </div>
+            )}
+            <div className="overflow-y-auto max-h-48">
+              {filtered.length === 0 ? (
+                <div className="px-4 py-3 text-sm text-[#a5aab6] text-center">No results</div>
+              ) : (
+                filtered.map((option) => (
+                  <button
+                    key={option.value}
+                    onClick={() => {
+                      onChange(option.value);
+                      setIsOpen(false);
+                    }}
+                    className={`w-full px-4 py-2 text-left text-sm flex items-center justify-between hover:bg-[#f0faf4] transition-colors ${value === option.value ? 'bg-[#f0faf4] font-bold' : ''} ${labelClassName || 'mono-label'}`}
+                  >
+                    <span>{option.label}</span>
+                    {option.badge}
+                  </button>
+                ))
+              )}
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -1600,48 +1636,42 @@ export default function App() {
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <label className="mono-label text-[#676c79]">AE NAME</label>
-                        <select
+                        <CustomSelect
                           value={agentForm.aeName}
-                          onChange={(e) => setAgentForm(f => ({ ...f, aeName: e.target.value }))}
-                          className="w-full p-3 border border-[#d4e8da] focus:border-[#008c44] outline-none text-sm bg-white"
-                        >
-                          <option value="">Select AE...</option>
-                          {slackUsersLoading && <option disabled>Loading...</option>}
-                          {slackUsers.map(u => (
-                            <option key={u.id} value={u.real_name}>{u.real_name}</option>
-                          ))}
-                        </select>
+                          onChange={(v) => setAgentForm(f => ({ ...f, aeName: v }))}
+                          options={slackUsers.map(u => ({ label: u.real_name, value: u.real_name }))}
+                          placeholder="Select AE..."
+                          labelClassName="font-sans"
+                          searchable
+                          loading={slackUsersLoading}
+                        />
                       </div>
                       <div className="space-y-2">
                         <label className="mono-label text-[#676c79]">SE NAME</label>
-                        <select
+                        <CustomSelect
                           value={agentForm.seName}
-                          onChange={(e) => setAgentForm(f => ({ ...f, seName: e.target.value }))}
-                          className="w-full p-3 border border-[#d4e8da] focus:border-[#008c44] outline-none text-sm bg-white"
-                        >
-                          <option value="">Select SE...</option>
-                          {slackUsersLoading && <option disabled>Loading...</option>}
-                          {slackUsers.map(u => (
-                            <option key={u.id} value={u.real_name}>{u.real_name}</option>
-                          ))}
-                        </select>
+                          onChange={(v) => setAgentForm(f => ({ ...f, seName: v }))}
+                          options={slackUsers.map(u => ({ label: u.real_name, value: u.real_name }))}
+                          placeholder="Select SE..."
+                          labelClassName="font-sans"
+                          searchable
+                          loading={slackUsersLoading}
+                        />
                       </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <label className="mono-label text-[#676c79]">CS LEAD</label>
-                        <select
+                        <CustomSelect
                           value={agentForm.csLead}
-                          onChange={(e) => setAgentForm(f => ({ ...f, csLead: e.target.value }))}
-                          className="w-full p-3 border border-[#d4e8da] focus:border-[#008c44] outline-none text-sm bg-white"
-                        >
-                          <option value="">Select CS Lead...</option>
-                          {slackUsersLoading && <option disabled>Loading...</option>}
-                          {slackUsers.map(u => (
-                            <option key={u.id} value={u.real_name}>{u.real_name}</option>
-                          ))}
-                        </select>
+                          onChange={(v) => setAgentForm(f => ({ ...f, csLead: v }))}
+                          options={slackUsers.map(u => ({ label: u.real_name, value: u.real_name }))}
+                          placeholder="Select CS Lead..."
+                          labelClassName="font-sans"
+                          searchable
+                          loading={slackUsersLoading}
+                        />
                       </div>
                       <div className="space-y-2">
                         <label className="mono-label text-[#676c79]">KICKOFF DATE</label>
