@@ -273,9 +273,9 @@ export default function App() {
           setCurrentUser(json.user);
           setGcalConnected(true);
           // Show welcome modal on first visit
-          if (!localStorage.getItem('sa-command-center-welcomed')) {
+          if (!localStorage.getItem('kickoff-hub-welcomed')) {
             setShowWelcome(true);
-            localStorage.setItem('sa-command-center-welcomed', 'true');
+            localStorage.setItem('kickoff-hub-welcomed', 'true');
           }
         } else {
           setAuthState('unauthenticated');
@@ -1148,7 +1148,7 @@ export default function App() {
             alt="AirOps Logo"
             className="h-10 mx-auto mb-6"
           />
-          <h1 className="text-2xl font-sans font-bold text-[#000d05] mb-2">SA Command Center</h1>
+          <h1 className="text-2xl font-sans font-bold text-[#000d05] mb-2">Kickoff Management Hub</h1>
           <p className="text-[#676c79] text-sm mb-8">Sign in with your AirOps Google account to access the dashboard.</p>
           <a
             href="/api/google-auth"
@@ -1360,7 +1360,7 @@ export default function App() {
               onClick={(e) => e.stopPropagation()}
               className="bg-white max-w-lg w-full mx-4 p-8 shadow-2xl border border-[#d4e8da]"
             >
-              <h2 className="text-2xl font-serif text-[#000d05] mb-1">Welcome to SA Command Center</h2>
+              <h2 className="text-2xl font-serif text-[#000d05] mb-1">Welcome to Kickoff Management Hub</h2>
               <p className="text-sm text-[#676c79] mb-6">Here's a quick overview of what you can do.</p>
 
               <div className="space-y-4 mb-8">
