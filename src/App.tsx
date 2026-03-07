@@ -346,7 +346,7 @@ export default function App() {
   const [selectedKickoffId, setSelectedKickoffId] = useState<string | null>(null);
   const [isBookingOpen, setIsBookingOpen] = useState(false);
   const [bookingWeek, setBookingWeek] = useState<string>('');
-  const [scheduleViewMode, setScheduleViewMode] = useState<'list' | 'calendar'>('calendar');
+  const [scheduleViewMode, setScheduleViewMode] = useState<'list' | 'calendar'>('list');
   const [calendarMonth, setCalendarMonth] = useState(() => {
     const now = new Date();
     return { year: now.getFullYear(), month: now.getMonth() };
