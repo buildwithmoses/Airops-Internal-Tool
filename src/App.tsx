@@ -407,7 +407,7 @@ export default function App() {
   // Load persisted deck result when a kickoff is selected
   useEffect(() => {
     if (!selectedKickoffId || deckResults[selectedKickoffId]) return;
-    fetch(`/api/kickoff-deck-get?kickoffId=${selectedKickoffId}`)
+    fetch(`/api/trigger-deck?action=get-deck&kickoffId=${selectedKickoffId}`)
       .then(r => r.json())
       .then(json => {
         if (json.result) {
@@ -422,7 +422,7 @@ export default function App() {
     if (!agentRunId || !selectedKickoffId) return;
     const interval = setInterval(async () => {
       try {
-        const res = await fetch(`/api/trigger-status?runId=${agentRunId}&kickoffId=${selectedKickoffId}`);
+        const res = await fetch(`/api/trigger-deck?action=status&runId=${agentRunId}&kickoffId=${selectedKickoffId}`);
         const json = await res.json();
         if (json.status === 'COMPLETED' && json.output) {
           setAgentResult(json.output);
@@ -443,7 +443,7 @@ export default function App() {
   useEffect(() => {
     if (!showAgentModal || slackUsers.length > 0) return;
     setSlackUsersLoading(true);
-    fetch('/api/slack-users')
+    fetch('/api/trigger-deck?action=slack-users')
       .then(r => r.json())
       .then(json => setSlackUsers(json.users || []))
       .catch(() => {})
