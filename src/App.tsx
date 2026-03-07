@@ -258,6 +258,7 @@ export default function App() {
   const [saLoadingState, setSaLoadingState] = useState<'idle' | 'loading' | 'loaded' | 'error'>('idle');
   const [gcalConnected, setGcalConnected] = useState(false);
   const [maxSlots, setMaxSlots] = useState(10);
+  const [showWelcome, setShowWelcome] = useState(false);
 
   // Check authentication on load
   useEffect(() => {
@@ -271,6 +272,11 @@ export default function App() {
           setAuthState('authenticated');
           setCurrentUser(json.user);
           setGcalConnected(true);
+          // Show welcome modal on first visit
+          if (!localStorage.getItem('sa-command-center-welcomed')) {
+            setShowWelcome(true);
+            localStorage.setItem('sa-command-center-welcomed', 'true');
+          }
         } else {
           setAuthState('unauthenticated');
         }
@@ -1333,6 +1339,80 @@ export default function App() {
             />
             <DetailPanel />
           </>
+        )}
+      </AnimatePresence>
+
+      {/* Welcome Modal */}
+      <AnimatePresence>
+        {showWelcome && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40"
+            onClick={() => setShowWelcome(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white max-w-lg w-full mx-4 p-8 shadow-2xl border border-[#d4e8da]"
+            >
+              <h2 className="text-2xl font-serif text-[#000d05] mb-1">Welcome to SA Command Center</h2>
+              <p className="text-sm text-[#676c79] mb-6">Here's a quick overview of what you can do.</p>
+
+              <div className="space-y-4 mb-8">
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 bg-[#CCFFE0] flex items-center justify-center flex-shrink-0">
+                    <Calendar size={16} className="text-[#008c44]" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-[#000d05]">Schedule</p>
+                    <p className="text-xs text-[#676c79]">View upcoming kickoffs by week or on a calendar. Your Google Calendar kickoffs sync automatically.</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 bg-[#CCFFE0] flex items-center justify-center flex-shrink-0">
+                    <Plus size={16} className="text-[#008c44]" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-[#000d05]">Book a Kickoff</p>
+                    <p className="text-xs text-[#676c79]">Click "Book Slot" on any week to schedule a new kickoff. SAs are sorted by availability so you can pick the best fit.</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 bg-[#CCFFE0] flex items-center justify-center flex-shrink-0">
+                    <CheckCircle2 size={16} className="text-[#008c44]" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-[#000d05]">Track Progress</p>
+                    <p className="text-xs text-[#676c79]">Click any kickoff to open its checklist. Track prep tasks, update status, and add notes.</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 bg-[#CCFFE0] flex items-center justify-center flex-shrink-0">
+                    <Users size={16} className="text-[#008c44]" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-[#000d05]">SA Capacity</p>
+                    <p className="text-xs text-[#676c79]">View each SA's workload pulled live from Asana — pre-activation, early, mid, and late stage breakdowns.</p>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setShowWelcome(false)}
+                className="w-full bg-[#00ff64] text-[#000d05] py-3 font-sans font-bold text-sm hover:opacity-90 transition-opacity"
+              >
+                Get Started
+              </button>
+            </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>
