@@ -43,7 +43,10 @@ interface Kickoff {
   createdAt: number;
   eventDate?: string; // ISO date string from Google Calendar
   eventLink?: string; // Link to Google Calendar event
+  useCaseType?: string; // e.g., "Content Creation", "Offsite"
 }
+
+const USE_CASE_TYPES = ['Content Creation', 'Content Refresh', 'Offsite'] as const;
 
 interface DeckResult {
   deckUrl: string;
@@ -767,9 +770,16 @@ export default function App() {
                         <StatusBadge status={k.status} />
                       </div>
                       <div className="flex items-center justify-between mt-auto">
-                        <span className="mono-label bg-[#CCFFE0] text-[#000d05] px-2 py-0.5">
-                          {k.saName}
-                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="mono-label bg-[#CCFFE0] text-[#000d05] px-2 py-0.5">
+                            {k.saName}
+                          </span>
+                          {k.useCaseType && (
+                            <span className="mono-label bg-[#EDE9FE] text-[#5B21B6] px-1.5 py-0.5 text-[9px]">
+                              {k.useCaseType}
+                            </span>
+                          )}
+                        </div>
                         <div className="flex items-center gap-2">
                           <span className="mono-label text-[#676c79]">
                             {k.tasks.filter(t => t).length}/{STANDARD_TASKS.length}
@@ -890,7 +900,7 @@ export default function App() {
                           }}
                           className="mb-1 px-1 md:px-1.5 py-0.5 text-[9px] md:text-[11px] truncate cursor-pointer rounded-sm border-l-2 border-[#008c44] bg-[#CCFFE0] text-[#000d05] hover:bg-[#b3f5d0] transition-colors"
                         >
-                          {k.customerName}{k.saName ? ` · ${k.saName}` : ''}
+                          {k.customerName}{k.saName ? ` · ${k.saName}` : ''}{k.useCaseType ? ` · ${k.useCaseType}` : ''}
                         </div>
                       ))}
                     </>
@@ -1102,18 +1112,85 @@ export default function App() {
   const BookingPanel = () => {
     const [customerName, setCustomerName] = useState('');
     const [aeName, setAeName] = useState(currentUser?.name || '');
-    const [saName, setSaName] = useState(sasSortedByCapacity[0]?.name || sas[0]?.name);
-    const [kickoffDate, setKickoffDate] = useState('');
+    const [selectedUseCases, setSelectedUseCases] = useState<Set<string>>(new Set());
     const [notes, setNotes] = useState('');
 
-    const derivedWeek = kickoffDate ? getWeekString(new Date(kickoffDate + 'T00:00:00')) : bookingWeek;
-    const weekSlotsUsed = kickoffs.filter(k => k.week === derivedWeek).length;
-    const weekIsFull = weekSlotsUsed >= maxSlots;
-    const selectedSaActiveCount = getActiveCount(saName);
+    // Dual kickoff mode: Offsite + at least one other use case
+    const hasOffsite = selectedUseCases.has('Offsite');
+    const nonOffsiteTypes = Array.from(selectedUseCases).filter(t => t !== 'Offsite');
+    const isDualMode = hasOffsite && nonOffsiteTypes.length > 0;
 
-    // Min date = today, max date = 8 weeks out
+    // SA state — single mode uses sa1, dual mode uses both
+    const [sa1, setSa1] = useState(sasSortedByCapacity[0]?.name || sas[0]?.name);
+    const [sa2, setSa2] = useState(sasSortedByCapacity[1]?.name || sas[1]?.name);
+    const [date1, setDate1] = useState('');
+    const [date2, setDate2] = useState('');
+
+    const derivedWeek1 = date1 ? getWeekString(new Date(date1 + 'T00:00:00')) : bookingWeek;
+    const derivedWeek2 = date2 ? getWeekString(new Date(date2 + 'T00:00:00')) : bookingWeek;
+    const week1SlotsUsed = kickoffs.filter(k => k.week === derivedWeek1).length;
+    const week2SlotsUsed = kickoffs.filter(k => k.week === derivedWeek2).length;
+    const week1IsFull = week1SlotsUsed >= maxSlots;
+    const week2IsFull = week2SlotsUsed >= maxSlots;
+
     const today = new Date().toISOString().split('T')[0];
     const maxDate = new Date(Date.now() + 56 * 86400000).toISOString().split('T')[0];
+
+    const toggleUseCase = (type: string) => {
+      setSelectedUseCases(prev => {
+        const next = new Set(prev);
+        if (next.has(type)) next.delete(type);
+        else next.add(type);
+        return next;
+      });
+    };
+
+    const saOptions = sasSortedByCapacity.map((sa, idx) => ({
+      label: idx === 0 ? `${sa.name} — Recommended` : sa.name,
+      value: sa.name,
+      badge: <CapacityBadge count={sa.preActivation + sa.earlyStage} />
+    }));
+
+    const handleSubmit = () => {
+      if (isDualMode) {
+        // Kickoff 1: Content use case(s)
+        handleAddKickoff({
+          customerName,
+          aeName,
+          saName: sa1,
+          week: derivedWeek1,
+          status: 'NOT STARTED',
+          notes,
+          eventDate: date1 ? new Date(date1 + 'T00:00:00').toISOString() : undefined,
+          useCaseType: nonOffsiteTypes.join(', '),
+        });
+        // Kickoff 2: Offsite
+        handleAddKickoff({
+          customerName,
+          aeName,
+          saName: sa2,
+          week: derivedWeek2,
+          status: 'NOT STARTED',
+          notes,
+          eventDate: date2 ? new Date(date2 + 'T00:00:00').toISOString() : undefined,
+          useCaseType: 'Offsite',
+        });
+      } else {
+        handleAddKickoff({
+          customerName,
+          aeName,
+          saName: sa1,
+          week: derivedWeek1,
+          status: 'NOT STARTED',
+          notes,
+          eventDate: date1 ? new Date(date1 + 'T00:00:00').toISOString() : undefined,
+          useCaseType: Array.from(selectedUseCases).join(', ') || undefined,
+        });
+      }
+    };
+
+    const canSubmit = customerName && date1 && selectedUseCases.size > 0 && !week1IsFull
+      && (!isDualMode || (date2 && !week2IsFull));
 
     return (
       <motion.div
@@ -1130,19 +1207,34 @@ export default function App() {
           </button>
         </div>
 
-        {weekIsFull && (
-          <div className="mb-6 p-3 bg-red-50 border border-red-200 rounded flex items-center gap-2 text-red-700 text-sm">
-            <AlertCircle size={16} /> This week is full ({maxSlots}/{maxSlots} slots used). Choose a different week.
-          </div>
-        )}
-
-        {selectedSaActiveCount >= 5 && (
-          <div className="mb-6 p-3 bg-amber-50 border border-amber-200 rounded flex items-center gap-2 text-amber-700 text-sm">
-            <AlertCircle size={16} /> {saName} has low capacity. Consider choosing a different SA.
+        {isDualMode && (
+          <div className="mb-6 p-3 bg-blue-50 border border-blue-200 rounded flex items-center gap-2 text-blue-700 text-sm">
+            <AlertCircle size={16} /> Offsite + Content requires 2 SAs and 2 kickoff dates. Two kickoffs will be created.
           </div>
         )}
 
         <div className="space-y-6">
+          {/* Use Case Type */}
+          <div className="space-y-2">
+            <label className="mono-label text-[#676c79]">Use Case Type</label>
+            <div className="flex flex-wrap gap-2">
+              {USE_CASE_TYPES.map(type => (
+                <button
+                  key={type}
+                  onClick={() => toggleUseCase(type)}
+                  className={`px-3 py-2 text-sm font-sans border transition-colors ${
+                    selectedUseCases.has(type)
+                      ? 'bg-[#000d05] text-white border-[#000d05]'
+                      : 'bg-white text-[#676c79] border-[#d4e8da] hover:border-[#008c44]'
+                  }`}
+                >
+                  {selectedUseCases.has(type) && <Check size={14} className="inline mr-1.5 -mt-0.5" />}
+                  {type}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="space-y-2">
             <label className="mono-label text-[#676c79]">Customer Name</label>
             <input
@@ -1165,48 +1257,93 @@ export default function App() {
             />
           </div>
 
+          {/* SA 1 */}
           <div className="space-y-2">
-            <label className="mono-label text-[#676c79]">SA</label>
+            <label className="mono-label text-[#676c79]">{isDualMode ? 'SA 1 (Content)' : 'SA'}</label>
             <CustomSelect
-              value={saName}
-              onChange={setSaName}
+              value={sa1}
+              onChange={setSa1}
               labelClassName="font-sans"
-              options={sasSortedByCapacity.map((sa, idx) => ({
-                label: idx === 0 ? `${sa.name} — Recommended` : sa.name,
-                value: sa.name,
-                badge: <CapacityBadge count={sa.preActivation + sa.earlyStage} />
-              }))}
+              options={saOptions}
             />
-            {saName === sasSortedByCapacity[0]?.name && (
+            {sa1 === sasSortedByCapacity[0]?.name && (
               <p className="text-xs text-[#008c44] flex items-center gap-1">
-                <CheckCircle2 size={12} /> Lowest active workload ({sasSortedByCapacity[0]?.preActivation + sasSortedByCapacity[0]?.earlyStage} active use-cases)
+                <CheckCircle2 size={12} /> Lowest active workload ({sasSortedByCapacity[0]?.preActivation + sasSortedByCapacity[0]?.earlyStage} active)
               </p>
             )}
           </div>
 
+          {/* SA Lead 1 */}
           <div className="space-y-2">
-            <label className="mono-label text-[#676c79]">SA Lead</label>
+            <label className="mono-label text-[#676c79]">{isDualMode ? 'SA Lead 1' : 'SA Lead'}</label>
             <div className="w-full p-3 border border-[#d4e8da] bg-[#F8FFFA] text-sm">
-              {getSALead(saName) ? (
-                <span className="font-sans">{getSALead(saName)} <span className="text-[#676c79]">({SA_POD_MAP[saName]?.pod})</span></span>
+              {getSALead(sa1) ? (
+                <span className="font-sans">{getSALead(sa1)} <span className="text-[#676c79]">({SA_POD_MAP[sa1]?.pod})</span></span>
               ) : (
                 <span className="text-[#a5aab6] italic">No pod assigned</span>
               )}
             </div>
           </div>
 
+          {/* SA 2 + Lead (dual mode only) */}
+          {isDualMode && (
+            <>
+              <div className="space-y-2">
+                <label className="mono-label text-[#676c79]">SA 2 (Offsite)</label>
+                <CustomSelect
+                  value={sa2}
+                  onChange={setSa2}
+                  labelClassName="font-sans"
+                  options={saOptions}
+                />
+                {sa2 === sasSortedByCapacity[1]?.name && (
+                  <p className="text-xs text-[#008c44] flex items-center gap-1">
+                    <CheckCircle2 size={12} /> 2nd lowest workload ({sasSortedByCapacity[1]?.preActivation + sasSortedByCapacity[1]?.earlyStage} active)
+                  </p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <label className="mono-label text-[#676c79]">SA Lead 2</label>
+                <div className="w-full p-3 border border-[#d4e8da] bg-[#F8FFFA] text-sm">
+                  {getSALead(sa2) ? (
+                    <span className="font-sans">{getSALead(sa2)} <span className="text-[#676c79]">({SA_POD_MAP[sa2]?.pod})</span></span>
+                  ) : (
+                    <span className="text-[#a5aab6] italic">No pod assigned</span>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Date 1 */}
           <div className="space-y-2">
-            <label className="mono-label text-[#676c79]">Kickoff Date</label>
+            <label className="mono-label text-[#676c79]">{isDualMode ? 'Kickoff Date 1 (Content)' : 'Kickoff Date'}</label>
             <input
               type="date"
-              value={kickoffDate}
-              onChange={(e) => setKickoffDate(e.target.value)}
+              value={date1}
+              onChange={(e) => setDate1(e.target.value)}
               min={today}
               max={maxDate}
               className="w-full p-3 border border-[#d4e8da] focus:border-[#008c44] outline-none"
             />
-            <p className="text-xs text-[#676c79]">Week {derivedWeek} — {weekSlotsUsed} / {maxSlots} slots used</p>
+            <p className="text-xs text-[#676c79]">Week {derivedWeek1} — {week1SlotsUsed} / {maxSlots} slots used</p>
           </div>
+
+          {/* Date 2 (dual mode only) */}
+          {isDualMode && (
+            <div className="space-y-2">
+              <label className="mono-label text-[#676c79]">Kickoff Date 2 (Offsite)</label>
+              <input
+                type="date"
+                value={date2}
+                onChange={(e) => setDate2(e.target.value)}
+                min={today}
+                max={maxDate}
+                className="w-full p-3 border border-[#d4e8da] focus:border-[#008c44] outline-none"
+              />
+              <p className="text-xs text-[#676c79]">Week {derivedWeek2} — {week2SlotsUsed} / {maxSlots} slots used</p>
+            </div>
+          )}
 
           <div className="space-y-2">
             <label className="mono-label text-[#676c79]">Notes</label>
@@ -1220,19 +1357,11 @@ export default function App() {
           </div>
 
           <button
-            onClick={() => handleAddKickoff({
-              customerName,
-              aeName,
-              saName,
-              week: derivedWeek,
-              status: 'NOT STARTED',
-              notes,
-              eventDate: kickoffDate ? new Date(kickoffDate + 'T00:00:00').toISOString() : undefined,
-            })}
-            disabled={!customerName || !kickoffDate || weekIsFull}
+            onClick={handleSubmit}
+            disabled={!canSubmit}
             className="w-full bg-[#00ff64] text-[#000d05] py-4 font-sans font-bold text-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
-            <Plus size={20} /> {weekIsFull ? 'Week Full' : 'Confirm Kickoff'}
+            <Plus size={20} /> {isDualMode ? 'Create 2 Kickoffs' : 'Confirm Kickoff'}
           </button>
         </div>
       </motion.div>
@@ -1255,9 +1384,12 @@ export default function App() {
         <div className="p-6 sm:p-8 border-b border-[#ecedef] flex justify-between items-start">
           <div>
             <h2 className="text-2xl sm:text-3xl font-serif mb-2">{selectedKickoff.customerName}</h2>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <StatusBadge status={selectedKickoff.status} />
               <span className="mono-label bg-[#EEFF8C] text-[#000d05] px-2 py-0.5">{selectedKickoff.week}</span>
+              {selectedKickoff.useCaseType && (
+                <span className="mono-label bg-[#EDE9FE] text-[#5B21B6] px-2 py-0.5">{selectedKickoff.useCaseType}</span>
+              )}
             </div>
           </div>
           <button onClick={() => setSelectedKickoffId(null)} className="text-[#676c79] hover:text-[#000d05]">
