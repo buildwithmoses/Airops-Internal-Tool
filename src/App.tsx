@@ -1121,8 +1121,9 @@ export default function App() {
 
   const BookingPanel = () => {
     const [customerName, setCustomerName] = useState('');
-    const [aeName, setAeName] = useState(currentUser?.name || '');
+    const [aeOverride, setAeOverride] = useState('');
     const [aeIsNotMe, setAeIsNotMe] = useState(false);
+    const aeName = aeIsNotMe ? aeOverride : (currentUser?.name || '');
     const [selectedUseCases, setSelectedUseCases] = useState<Set<string>>(new Set());
     const [notes, setNotes] = useState('');
 
@@ -1266,7 +1267,7 @@ export default function App() {
                 </div>
                 <button
                   type="button"
-                  onClick={() => { setAeIsNotMe(true); setAeName(''); }}
+                  onClick={() => { setAeIsNotMe(true); setAeOverride(''); }}
                   className="text-xs text-[#008c44] hover:underline whitespace-nowrap"
                 >
                   Not Me
@@ -1276,15 +1277,15 @@ export default function App() {
               <div className="flex items-center gap-3">
                 <input
                   type="text"
-                  value={aeName}
-                  onChange={(e) => setAeName(e.target.value)}
+                  value={aeOverride}
+                  onChange={(e) => setAeOverride(e.target.value)}
                   placeholder="Enter AE name"
                   className="flex-1 p-3 border border-[#d4e8da] focus:border-[#008c44] outline-none"
                   autoFocus
                 />
                 <button
                   type="button"
-                  onClick={() => { setAeIsNotMe(false); setAeName(currentUser?.name || ''); }}
+                  onClick={() => { setAeIsNotMe(false); setAeOverride(currentUser?.name || ''); }}
                   className="text-xs text-[#676c79] hover:underline whitespace-nowrap"
                 >
                   Use Mine
