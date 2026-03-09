@@ -80,7 +80,7 @@ export default async function handler(req: any, res: any) {
     const tasks = await fetchAllTasks();
 
     // Group by task ASSIGNEE (the SA assigned to each task/client)
-    const saMap: Record<string, { activeProjects: number; preActivation: number; earlyStage: number; midStage: number; lateStage: number; clients: string[] }> = {};
+    const saMap: Record<string, { activeProjects: number; preActivation: number; earlyStage: number; midStage: number; lateStage: number; offsite: number; clients: string[] }> = {};
 
     for (const task of tasks) {
       if (task.completed) continue;
@@ -103,10 +103,15 @@ export default async function handler(req: any, res: any) {
       }
 
       if (!saMap[saName]) {
-        saMap[saName] = { activeProjects: 0, preActivation: 0, earlyStage: 0, midStage: 0, lateStage: 0, clients: [] };
+        saMap[saName] = { activeProjects: 0, preActivation: 0, earlyStage: 0, midStage: 0, lateStage: 0, offsite: 0, clients: [] };
       }
 
+      // Detect offsite projects by task name
+      const isOffsite = task.name.toLowerCase().includes('offsite');
+
       saMap[saName].activeProjects++;
+      if (isOffsite) saMap[saName].offsite++;
+
       const stage = classifyStage(customerStatus, useCasePhase);
       if (stage === 'preActivation') saMap[saName].preActivation++;
       else if (stage === 'early') saMap[saName].earlyStage++;
@@ -125,6 +130,7 @@ export default async function handler(req: any, res: any) {
         earlyStage: data.earlyStage,
         midStage: data.midStage,
         lateStage: data.lateStage,
+        offsite: data.offsite,
         notes: '',
         clients: data.clients,
       }))

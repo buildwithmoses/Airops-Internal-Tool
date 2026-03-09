@@ -69,6 +69,7 @@ interface SA {
   earlyStage: number;
   midStage: number;
   lateStage: number;
+  offsite: number;
   notes: string;
 }
 
@@ -114,24 +115,24 @@ const STANDARD_TASKS = [
 ];
 
 const INITIAL_SAS: SA[] = [
-  { name: "Aaron Lit", activeProjects: 0, preActivation: 0, earlyStage: 0, midStage: 0, lateStage: 0, notes: ""},
-  { name: "AJ Diaz", activeProjects: 0, preActivation: 0, earlyStage: 0, midStage: 0, lateStage: 0, notes: ""},
-  { name: "Andreea Volzer", activeProjects: 0, preActivation: 0, earlyStage: 0, midStage: 0, lateStage: 0, notes: ""},
-  { name: "Anton O'Malley", activeProjects: 0, preActivation: 0, earlyStage: 0, midStage: 0, lateStage: 0, notes: ""},
-  { name: "Arnett Shen", activeProjects: 0, preActivation: 0, earlyStage: 0, midStage: 0, lateStage: 0, notes: ""},
-  { name: "Diana Shiling", activeProjects: 0, preActivation: 0, earlyStage: 0, midStage: 0, lateStage: 0, notes: ""},
-  { name: "Elmi Abdullahi", activeProjects: 0, preActivation: 0, earlyStage: 0, midStage: 0, lateStage: 0, notes: ""},
-  { name: "Henry Moses Jr", activeProjects: 0, preActivation: 0, earlyStage: 0, midStage: 0, lateStage: 0, notes: ""},
-  { name: "Henry Young", activeProjects: 0, preActivation: 0, earlyStage: 0, midStage: 0, lateStage: 0, notes: ""},
-  { name: "Jeremy Kao", activeProjects: 0, preActivation: 0, earlyStage: 0, midStage: 0, lateStage: 0, notes: ""},
-  { name: "Joel Fazecas", activeProjects: 0, preActivation: 0, earlyStage: 0, midStage: 0, lateStage: 0, notes: ""},
-  { name: "John Sellers", activeProjects: 0, preActivation: 0, earlyStage: 0, midStage: 0, lateStage: 0, notes: ""},
-  { name: "Melanie Dell'Olio", activeProjects: 0, preActivation: 0, earlyStage: 0, midStage: 0, lateStage: 0, notes: ""},
-  { name: "Palmer Jones", activeProjects: 0, preActivation: 0, earlyStage: 0, midStage: 0, lateStage: 0, notes: ""},
-  { name: "Richard Li", activeProjects: 0, preActivation: 0, earlyStage: 0, midStage: 0, lateStage: 0, notes: ""},
-  { name: "Shahbaz Mahmood", activeProjects: 0, preActivation: 0, earlyStage: 0, midStage: 0, lateStage: 0, notes: ""},
-  { name: "William Reed", activeProjects: 0, preActivation: 0, earlyStage: 0, midStage: 0, lateStage: 0, notes: ""},
-  { name: "Zoe Febrero", activeProjects: 0, preActivation: 0, earlyStage: 0, midStage: 0, lateStage: 0, notes: ""},
+  { name: "Aaron Lit", activeProjects: 0, preActivation: 0, earlyStage: 0, midStage: 0, lateStage: 0, offsite: 0, notes: ""},
+  { name: "AJ Diaz", activeProjects: 0, preActivation: 0, earlyStage: 0, midStage: 0, lateStage: 0, offsite: 0, notes: ""},
+  { name: "Andreea Volzer", activeProjects: 0, preActivation: 0, earlyStage: 0, midStage: 0, lateStage: 0, offsite: 0, notes: ""},
+  { name: "Anton O'Malley", activeProjects: 0, preActivation: 0, earlyStage: 0, midStage: 0, lateStage: 0, offsite: 0, notes: ""},
+  { name: "Arnett Shen", activeProjects: 0, preActivation: 0, earlyStage: 0, midStage: 0, lateStage: 0, offsite: 0, notes: ""},
+  { name: "Diana Shiling", activeProjects: 0, preActivation: 0, earlyStage: 0, midStage: 0, lateStage: 0, offsite: 0, notes: ""},
+  { name: "Elmi Abdullahi", activeProjects: 0, preActivation: 0, earlyStage: 0, midStage: 0, lateStage: 0, offsite: 0, notes: ""},
+  { name: "Henry Moses Jr", activeProjects: 0, preActivation: 0, earlyStage: 0, midStage: 0, lateStage: 0, offsite: 0, notes: ""},
+  { name: "Henry Young", activeProjects: 0, preActivation: 0, earlyStage: 0, midStage: 0, lateStage: 0, offsite: 0, notes: ""},
+  { name: "Jeremy Kao", activeProjects: 0, preActivation: 0, earlyStage: 0, midStage: 0, lateStage: 0, offsite: 0, notes: ""},
+  { name: "Joel Fazecas", activeProjects: 0, preActivation: 0, earlyStage: 0, midStage: 0, lateStage: 0, offsite: 0, notes: ""},
+  { name: "John Sellers", activeProjects: 0, preActivation: 0, earlyStage: 0, midStage: 0, lateStage: 0, offsite: 0, notes: ""},
+  { name: "Melanie Dell'Olio", activeProjects: 0, preActivation: 0, earlyStage: 0, midStage: 0, lateStage: 0, offsite: 0, notes: ""},
+  { name: "Palmer Jones", activeProjects: 0, preActivation: 0, earlyStage: 0, midStage: 0, lateStage: 0, offsite: 0, notes: ""},
+  { name: "Richard Li", activeProjects: 0, preActivation: 0, earlyStage: 0, midStage: 0, lateStage: 0, offsite: 0, notes: ""},
+  { name: "Shahbaz Mahmood", activeProjects: 0, preActivation: 0, earlyStage: 0, midStage: 0, lateStage: 0, offsite: 0, notes: ""},
+  { name: "William Reed", activeProjects: 0, preActivation: 0, earlyStage: 0, midStage: 0, lateStage: 0, offsite: 0, notes: ""},
+  { name: "Zoe Febrero", activeProjects: 0, preActivation: 0, earlyStage: 0, midStage: 0, lateStage: 0, offsite: 0, notes: ""},
 ];
 
 
@@ -582,14 +583,20 @@ export default function App() {
     }
   }, [selectedKickoff, agentForm]);
 
-  // Capacity Score Heuristic
+  // Capacity Score Heuristic — offsite projects count as ~1/3 of a regular project
+  const getEffectiveLoad = (sa: SA) => {
+    const raw = sa.preActivation + sa.earlyStage;
+    const offsiteWeight = Math.ceil(sa.offsite / 3);
+    return (raw - sa.offsite) + offsiteWeight;
+  };
+
   const getActiveCount = (saName: string) => {
     const sa = sas.find(s => s.name === saName);
     if (!sa) return 0;
-    return sa.preActivation + sa.earlyStage;
+    return getEffectiveLoad(sa);
   };
 
-  const sasSortedByCapacity = [...sas].sort((a, b) => (a.preActivation + a.earlyStage) - (b.preActivation + b.earlyStage));
+  const sasSortedByCapacity = [...sas].sort((a, b) => getEffectiveLoad(a) - getEffectiveLoad(b));
 
   // Debounced SA notes save
   const saNotesTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
@@ -1054,6 +1061,7 @@ export default function App() {
                       <span className="text-[#008c44] font-bold">{sa.earlyStage}</span> early /
                       <span className="text-[#008c44] font-bold">{sa.midStage}</span> mid /
                       <span className="text-[#008c44] font-bold">{sa.lateStage}</span> late
+                      {sa.offsite > 0 && <> / <span className="text-[#7C3AED] font-bold">{sa.offsite}</span> offsite</>}
                     </div>
                   </td>
                   <td className="p-4 text-sm font-mono">{upcoming}</td>
@@ -1148,7 +1156,7 @@ export default function App() {
     const saOptions = sasSortedByCapacity.map((sa, idx) => ({
       label: idx === 0 ? `${sa.name} — Recommended` : sa.name,
       value: sa.name,
-      badge: <CapacityBadge count={sa.preActivation + sa.earlyStage} />
+      badge: <CapacityBadge count={getEffectiveLoad(sa)} />
     }));
 
     const handleSubmit = () => {
@@ -1268,7 +1276,7 @@ export default function App() {
             />
             {sa1 === sasSortedByCapacity[0]?.name && (
               <p className="text-xs text-[#008c44] flex items-center gap-1">
-                <CheckCircle2 size={12} /> Lowest active workload ({sasSortedByCapacity[0]?.preActivation + sasSortedByCapacity[0]?.earlyStage} active)
+                <CheckCircle2 size={12} /> Lowest active workload ({sasSortedByCapacity[0] ? getEffectiveLoad(sasSortedByCapacity[0]) : 0} effective)
               </p>
             )}
           </div>
@@ -1298,7 +1306,7 @@ export default function App() {
                 />
                 {sa2 === sasSortedByCapacity[1]?.name && (
                   <p className="text-xs text-[#008c44] flex items-center gap-1">
-                    <CheckCircle2 size={12} /> 2nd lowest workload ({sasSortedByCapacity[1]?.preActivation + sasSortedByCapacity[1]?.earlyStage} active)
+                    <CheckCircle2 size={12} /> 2nd lowest workload ({sasSortedByCapacity[1] ? getEffectiveLoad(sasSortedByCapacity[1]) : 0} effective)
                   </p>
                 )}
               </div>
