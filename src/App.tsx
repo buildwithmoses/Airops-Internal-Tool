@@ -396,19 +396,19 @@ export default function App() {
       })
       .catch(() => {});
 
-    // Then merge Google Calendar kickoffs
-    fetch('/api/google-calendar-kickoffs')
-      .then(res => res.json())
-      .then(json => {
-        if (json.connected && json.kickoffs?.length > 0) {
-          setKickoffs(prev => {
-            const existingIds = new Set(prev.map(k => k.id));
-            const newKickoffs = json.kickoffs.filter((k: any) => !existingIds.has(k.id));
-            return [...prev, ...newKickoffs];
-          });
-        }
-      })
-      .catch(() => {});
+    // Google Calendar kickoff import disabled for now
+    // fetch('/api/google-calendar-kickoffs')
+    //   .then(res => res.json())
+    //   .then(json => {
+    //     if (json.connected && json.kickoffs?.length > 0) {
+    //       setKickoffs(prev => {
+    //         const existingIds = new Set(prev.map(k => k.id));
+    //         const newKickoffs = json.kickoffs.filter((k: any) => !existingIds.has(k.id));
+    //         return [...prev, ...newKickoffs];
+    //       });
+    //     }
+    //   })
+    //   .catch(() => {});
   }, [authState]);
 
   // Fetch SA data from Asana API
