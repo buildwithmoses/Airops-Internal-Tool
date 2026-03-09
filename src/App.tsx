@@ -429,6 +429,7 @@ export default function App() {
             earlyStage: sa.earlyStage,
             midStage: sa.midStage,
             lateStage: sa.lateStage,
+            offsite: sa.offsite || 0,
             notes: '',
           }));
           // Load persisted SA notes and merge
@@ -586,8 +587,9 @@ export default function App() {
   // Capacity Score Heuristic — offsite projects count as ~1/3 of a regular project
   const getEffectiveLoad = (sa: SA) => {
     const raw = sa.preActivation + sa.earlyStage;
-    const offsiteWeight = Math.ceil(sa.offsite / 3);
-    return (raw - sa.offsite) + offsiteWeight;
+    const offsite = sa.offsite || 0;
+    const offsiteWeight = Math.ceil(offsite / 3);
+    return (raw - offsite) + offsiteWeight;
   };
 
   const getActiveCount = (saName: string) => {
