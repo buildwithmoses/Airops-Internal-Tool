@@ -168,6 +168,15 @@ const getWeekStartDate = (weekStr: string): Date => {
   return monday;
 };
 
+// Format week date range (e.g., "Mar 9 – Mar 13")
+const getWeekDateRange = (weekStr: string): string => {
+  const mon = getWeekStartDate(weekStr);
+  const fri = new Date(mon);
+  fri.setUTCDate(mon.getUTCDate() + 4);
+  const fmt = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+  return `${fmt(mon)} – ${fmt(fri)}`;
+};
+
 // Get calendar grid for a given month (weekdays only, Mon-Fri)
 const getCalendarDays = (year: number, month: number) => {
   const firstDay = new Date(year, month, 1);
@@ -700,16 +709,26 @@ export default function App() {
 
       {scheduleViewMode === 'list' ? (
         <div className="space-y-4">
-          {nextWeeks.map(week => {
+          {(() => {
+            // Collect all weeks from kickoffs + next 8 weeks, dedupe, sort chronologically
+            const allWeekSet = new Set([...nextWeeks, ...kickoffs.map(k => k.week)]);
+            return Array.from(allWeekSet).sort();
+          })().map(week => {
             const weekKickoffs = kickoffs.filter(k => k.week === week);
             const slotsUsed = weekKickoffs.length;
+            const currentWeek = getWeekString(new Date());
+            const isPast = week < currentWeek;
 
             return (
               <div key={week} className="border border-[#d4e8da] bg-white p-4 md:p-6 space-y-4 md:space-y-6">
                 <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3">
                   <div className="flex items-center gap-4 md:gap-6">
-                    <div className="min-w-[100px] md:min-w-[120px]">
-                      <h3 className="text-base md:text-lg font-sans font-medium text-[#09090b]">{week}</h3>
+                    <div className="min-w-[140px] md:min-w-[200px]">
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-base md:text-lg font-sans font-medium text-[#09090b]">{week}</h3>
+                        {isPast && <span className="mono-label px-1.5 py-0.5 bg-[#ecedef] text-[#676c79] text-[10px]">PAST</span>}
+                      </div>
+                      <p className="text-xs text-[#676c79]">{getWeekDateRange(week)}</p>
                       <p className="mono-label text-[#676c79]">{slotsUsed} / {maxSlots} SLOTS</p>
                     </div>
                     <div className="w-32 md:w-48">
