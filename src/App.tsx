@@ -1122,6 +1122,7 @@ export default function App() {
   const BookingPanel = () => {
     const [customerName, setCustomerName] = useState('');
     const [aeName, setAeName] = useState(currentUser?.name || '');
+    const [aeIsNotMe, setAeIsNotMe] = useState(false);
     const [selectedUseCases, setSelectedUseCases] = useState<Set<string>>(new Set());
     const [notes, setNotes] = useState('');
 
@@ -1258,13 +1259,38 @@ export default function App() {
 
           <div className="space-y-2">
             <label className="mono-label text-[#676c79]">AE Name</label>
-            <input
-              type="text"
-              value={aeName}
-              onChange={(e) => setAeName(e.target.value)}
-              placeholder="Your name"
-              className="w-full p-3 border border-[#d4e8da] focus:border-[#008c44] outline-none"
-            />
+            {!aeIsNotMe ? (
+              <div className="flex items-center gap-3">
+                <div className="flex-1 p-3 border border-[#d4e8da] bg-[#F8FFFA] text-sm font-sans">
+                  {currentUser?.name || 'Unknown'}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => { setAeIsNotMe(true); setAeName(''); }}
+                  className="text-xs text-[#008c44] hover:underline whitespace-nowrap"
+                >
+                  Not Me
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-3">
+                <input
+                  type="text"
+                  value={aeName}
+                  onChange={(e) => setAeName(e.target.value)}
+                  placeholder="Enter AE name"
+                  className="flex-1 p-3 border border-[#d4e8da] focus:border-[#008c44] outline-none"
+                  autoFocus
+                />
+                <button
+                  type="button"
+                  onClick={() => { setAeIsNotMe(false); setAeName(currentUser?.name || ''); }}
+                  className="text-xs text-[#676c79] hover:underline whitespace-nowrap"
+                >
+                  Use Mine
+                </button>
+              </div>
+            )}
           </div>
 
           {/* SA 1 */}
