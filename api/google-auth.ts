@@ -9,7 +9,7 @@ export default function handler(req: any, res: any) {
     client_id: CLIENT_ID!,
     redirect_uri: redirectUri,
     response_type: 'code',
-    scope: 'https://www.googleapis.com/auth/calendar.readonly email',
+    scope: 'https://www.googleapis.com/auth/calendar.readonly email profile',
     hd: 'airops.com',
     access_type: 'offline',
     prompt: 'consent',
