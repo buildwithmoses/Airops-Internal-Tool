@@ -711,8 +711,9 @@ export default function App() {
     setKickoffs(prev => [kickoff, ...prev]);
     saveKickoffToRedis(kickoff);
     setIsBookingOpen(false);
+  };
 
-    // Trigger Slack channel creation in background
+  const triggerSlackChannels = (kickoff: Kickoff) => {
     fetch('/api/trigger-deck?action=trigger-slack', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1521,6 +1522,22 @@ export default function App() {
                     >
                       <ArrowRight size={12} />
                       Use Agent
+                    </button>
+                  )}
+                  {task === 'Slack Channel Created' && !selectedKickoff.slackInternalChannelId && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        triggerSlackChannels(selectedKickoff);
+                      }}
+                      disabled={slackRunId === selectedKickoff.id || slackKickoffId === selectedKickoff.id}
+                      className="ml-auto flex items-center gap-1.5 px-3 py-1 bg-[#00ff64] text-[#000d05] text-xs font-bold hover:opacity-90 transition-opacity rounded-sm disabled:opacity-50"
+                    >
+                      {slackKickoffId === selectedKickoff.id ? (
+                        <><Loader2 size={12} className="animate-spin" /> Creating...</>
+                      ) : (
+                        <><ArrowRight size={12} /> Use Agent</>
+                      )}
                     </button>
                   )}
                 </div>
