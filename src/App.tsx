@@ -23,7 +23,9 @@ import {
   ExternalLink,
   FileText,
   FolderOpen,
-  Trash2
+  Trash2,
+  Copy,
+  Hash
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -48,6 +50,9 @@ interface Kickoff {
   timezone?: string;
   arr?: string;       // Annual Recurring Revenue
   isPoc?: boolean;    // Proof of Concept
+  slackInternalChannelId?: string;
+  slackExternalChannelId?: string;
+  slackConnectInviteLink?: string;
 }
 
 const USE_CASE_TYPES = ['Content Creation', 'Content Refresh', 'Offsite'] as const;
@@ -484,6 +489,8 @@ export default function App() {
   const [agentResult, setAgentResult] = useState<DeckResult | null>(null);
   const [agentError, setAgentError] = useState<string | null>(null);
   const [deckResults, setDeckResults] = useState<Record<string, DeckResult>>({});
+  const [slackRunId, setSlackRunId] = useState<string | null>(null);
+  const [slackKickoffId, setSlackKickoffId] = useState<string | null>(null);
 
   const nextWeeks = useMemo(() => getNextWeeks(), []);
 
@@ -526,6 +533,43 @@ export default function App() {
     }, 3000);
     return () => clearInterval(interval);
   }, [agentRunId, selectedKickoffId]);
+
+  // Poll for Slack channel creation completion
+  useEffect(() => {
+    if (!slackRunId || !slackKickoffId) return;
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/trigger-deck?action=slack-status&runId=${slackRunId}&kickoffId=${slackKickoffId}`);
+        const json = await res.json();
+        if (json.status === 'COMPLETED' && json.output) {
+          const output = json.output;
+          setKickoffs(prev => prev.map(k => {
+            if (k.id === slackKickoffId) {
+              const newTasks = [...k.tasks];
+              newTasks[7] = true; // Auto-check "Slack Channel Created"
+              return {
+                ...k,
+                tasks: newTasks,
+                status: k.status === 'NOT STARTED' ? 'IN PROGRESS' : k.status,
+                slackInternalChannelId: output.slackInternalChannelId,
+                slackExternalChannelId: output.slackExternalChannelId,
+                slackConnectInviteLink: output.slackConnectInviteLink,
+              };
+            }
+            return k;
+          }));
+          setSlackRunId(null);
+          setSlackKickoffId(null);
+        } else if (json.status === 'FAILED' || json.status === 'CANCELED') {
+          setSlackRunId(null);
+          setSlackKickoffId(null);
+        }
+      } catch {
+        // keep polling
+      }
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [slackRunId, slackKickoffId]);
 
   // Fetch Slack users when modal opens
   useEffect(() => {
@@ -667,6 +711,30 @@ export default function App() {
     setKickoffs(prev => [kickoff, ...prev]);
     saveKickoffToRedis(kickoff);
     setIsBookingOpen(false);
+
+    // Trigger Slack channel creation in background
+    fetch('/api/trigger-deck?action=trigger-slack', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        kickoffId: kickoff.id,
+        customerName: kickoff.customerName,
+        aeName: kickoff.aeName,
+        saName: kickoff.saName,
+        saLeadName: getSALead(kickoff.saName) || '',
+        kickoffDate: kickoff.eventDate,
+        useCase: kickoff.useCaseType,
+        pod: SA_POD_MAP[kickoff.saName]?.pod || '',
+      }),
+    })
+      .then(r => r.json())
+      .then(json => {
+        if (json.ok && json.runId) {
+          setSlackRunId(json.runId);
+          setSlackKickoffId(kickoff.id);
+        }
+      })
+      .catch(() => {});
   };
 
   const isAdmin = currentUser?.email === 'henry.moses@airops.com';
@@ -1487,6 +1555,68 @@ export default function App() {
                   <ExternalLink size={12} />
                 </a>
               </div>
+            </div>
+          )}
+
+          {/* Slack Channels */}
+          {(selectedKickoff.slackInternalChannelId || selectedKickoff.slackExternalChannelId || slackKickoffId === selectedKickoff.id) && (
+            <div className="space-y-3">
+              <label className="mono-label text-[#676c79]">SLACK CHANNELS</label>
+              {slackKickoffId === selectedKickoff.id && slackRunId ? (
+                <div className="p-4 bg-[#F8FFFA] border border-[#d4e8da] flex items-center gap-2 text-sm text-[#676c79]">
+                  <Loader2 size={14} className="animate-spin" />
+                  Creating Slack channels...
+                </div>
+              ) : (
+                <div className="p-4 bg-[#F8FFFA] border border-[#d4e8da] space-y-3">
+                  {selectedKickoff.slackInternalChannelId && (
+                    <a
+                      href={`https://slack.com/app_redirect?channel=${selectedKickoff.slackInternalChannelId}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 text-sm text-[#008c44] hover:underline"
+                    >
+                      <Hash size={14} />
+                      Internal Channel
+                      <ExternalLink size={12} />
+                    </a>
+                  )}
+                  {selectedKickoff.slackExternalChannelId && (
+                    <a
+                      href={`https://slack.com/app_redirect?channel=${selectedKickoff.slackExternalChannelId}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 text-sm text-[#008c44] hover:underline"
+                    >
+                      <Hash size={14} />
+                      External Channel
+                      <ExternalLink size={12} />
+                    </a>
+                  )}
+                  {selectedKickoff.slackConnectInviteLink && (
+                    <div className="pt-2 border-t border-[#d4e8da]">
+                      <p className="mono-label text-[#a5aab6] mb-1">CLIENT INVITE LINK</p>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          readOnly
+                          value={selectedKickoff.slackConnectInviteLink}
+                          className="flex-1 p-2 border border-[#d4e8da] bg-white text-xs text-[#676c79] outline-none"
+                        />
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(selectedKickoff.slackConnectInviteLink!);
+                          }}
+                          className="p-2 border border-[#d4e8da] hover:bg-[#f0faf4] transition-colors"
+                          title="Copy link"
+                        >
+                          <Copy size={14} className="text-[#676c79]" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 

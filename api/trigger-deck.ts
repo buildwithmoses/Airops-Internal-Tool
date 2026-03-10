@@ -102,6 +102,64 @@ export default async function handler(req: any, res: any) {
       return sendJson(res, 200, { status: run.status, output: run.output || null });
     }
 
+    // POST: Trigger Slack channel creation
+    if (action === 'trigger-slack') {
+      if (req.method !== 'POST') return sendJson(res, 405, { error: 'Method not allowed' });
+      const payload = JSON.parse(await readBody(req));
+      if (!payload.kickoffId || !payload.customerName) {
+        return sendJson(res, 400, { error: 'Missing kickoffId or customerName' });
+      }
+
+      const { tasks } = await import('@trigger.dev/sdk/v3');
+      const handle = await tasks.trigger('kickoff-slack-channels', {
+        kickoffId: payload.kickoffId,
+        customerName: payload.customerName,
+        aeName: payload.aeName,
+        saName: payload.saName,
+        saLeadName: payload.saLeadName,
+        kickoffDate: payload.kickoffDate,
+        useCase: payload.useCase,
+        pod: payload.pod,
+      });
+
+      return sendJson(res, 200, { ok: true, runId: handle.id });
+    }
+
+    // GET: Poll Slack channel creation status
+    if (action === 'slack-status') {
+      if (req.method !== 'GET') return sendJson(res, 405, { error: 'Method not allowed' });
+      const params = getParams(req);
+      const runId = params.get('runId');
+      const kickoffId = params.get('kickoffId');
+      if (!runId) return sendJson(res, 400, { error: 'Missing runId' });
+
+      const { runs } = await import('@trigger.dev/sdk/v3');
+      const run = await runs.retrieve(runId);
+
+      if (run.status === 'COMPLETED' && run.output && kickoffId) {
+        const redis = await getRedis();
+        const output = run.output as any;
+
+        // Update the kickoff with Slack channel data and auto-check task
+        const raw = await redis.get(`kickoff:${kickoffId}`);
+        if (raw) {
+          const kickoff = typeof raw === 'string' ? JSON.parse(raw) : raw;
+          kickoff.slackInternalChannelId = output.slackInternalChannelId || undefined;
+          kickoff.slackExternalChannelId = output.slackExternalChannelId || undefined;
+          kickoff.slackConnectInviteLink = output.slackConnectInviteLink || undefined;
+          if (kickoff.tasks && kickoff.tasks.length > 7) {
+            kickoff.tasks[7] = true; // Auto-check "Slack Channel Created"
+          }
+          await redis.set(`kickoff:${kickoffId}`, JSON.stringify(kickoff));
+        }
+
+        // Also persist slack result separately
+        await redis.set(`kickoff-slack:${kickoffId}`, JSON.stringify(output));
+      }
+
+      return sendJson(res, 200, { status: run.status, output: run.output || null });
+    }
+
     // GET: Fetch persisted deck result
     if (action === 'get-deck') {
       if (req.method !== 'GET') return sendJson(res, 405, { error: 'Method not allowed' });
