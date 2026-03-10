@@ -1235,20 +1235,15 @@ export default function App() {
             />
           </div>
 
-          {/* SA */}
+          {/* SA (auto-assigned, not editable) */}
           <div className="space-y-2">
             <label className="mono-label text-[#676c79]">SA</label>
-            <CustomSelect
-              value={sa1}
-              onChange={setSa1}
-              labelClassName="font-sans"
-              options={saOptions}
-            />
-            {sa1 === sasSortedByCapacity[0]?.name && (
-              <p className="text-xs text-[#008c44] flex items-center gap-1">
-                <CheckCircle2 size={12} /> Lowest active workload ({sasSortedByCapacity[0] ? getEffectiveLoad(sasSortedByCapacity[0]) : 0} effective)
-              </p>
-            )}
+            <div className="w-full p-3 border border-[#d4e8da] bg-[#F8FFFA] text-sm font-sans">
+              {sa1 || 'Unassigned'}
+            </div>
+            <p className="text-xs text-[#008c44] flex items-center gap-1">
+              <CheckCircle2 size={12} /> Auto-assigned — lowest active workload ({sasSortedByCapacity[0] ? getEffectiveLoad(sasSortedByCapacity[0]) : 0} effective)
+            </p>
           </div>
 
           {/* SA Lead */}
