@@ -111,6 +111,8 @@ const SA_POD_MAP: Record<string, { pod: string; lead: string }> = {
 
 const getSALead = (saName: string): string | null => SA_POD_MAP[saName]?.lead || null;
 
+const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 80);
+
 const STANDARD_TASKS = [
   "AEO Workspace ID - UPGRADE",
   "Set Tasks in Admin",
@@ -1594,7 +1596,7 @@ export default function App() {
                       className="flex items-center gap-2 text-sm text-[#008c44] hover:underline"
                     >
                       <Hash size={14} />
-                      Internal Channel
+                      c-internal-{slugify(selectedKickoff.customerName)}
                       <ExternalLink size={12} />
                     </a>
                   )}
@@ -1606,7 +1608,7 @@ export default function App() {
                       className="flex items-center gap-2 text-sm text-[#008c44] hover:underline"
                     >
                       <Hash size={14} />
-                      External Channel
+                      airops-{slugify(selectedKickoff.customerName)}
                       <ExternalLink size={12} />
                     </a>
                   )}
