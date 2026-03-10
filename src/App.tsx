@@ -22,7 +22,8 @@ import {
   Loader2,
   ExternalLink,
   FileText,
-  FolderOpen
+  FolderOpen,
+  Trash2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -668,6 +669,20 @@ export default function App() {
     setIsBookingOpen(false);
   };
 
+  const isAdmin = currentUser?.email === 'henry.moses@airops.com';
+
+  const handleDeleteKickoff = (kickoffId: string) => {
+    if (!isAdmin) return;
+    if (!confirm('Are you sure you want to delete this kickoff? This cannot be undone.')) return;
+    setKickoffs(prev => prev.filter(k => k.id !== kickoffId));
+    setSelectedKickoffId(null);
+    fetch('/api/kickoffs-delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: kickoffId }),
+    }).catch(() => {});
+  };
+
   const filteredKickoffs = useMemo(() => {
     return kickoffs.filter(k => {
       const matchesStatus = filterStatus === 'ALL' || k.status === filterStatus;
@@ -1124,9 +1139,7 @@ export default function App() {
 
   const BookingPanel = () => {
     const [customerName, setCustomerName] = useState('');
-    const [aeOverride, setAeOverride] = useState('');
-    const [aeIsNotMe, setAeIsNotMe] = useState(false);
-    const aeName = aeIsNotMe ? aeOverride : (currentUser?.name || '');
+    const [aeName, setAeName] = useState('');
     const [selectedUseCase, setSelectedUseCase] = useState('');
     const [notes, setNotes] = useState('');
     const [timezone, setTimezone] = useState('');
@@ -1170,7 +1183,7 @@ export default function App() {
       });
     };
 
-    const canSubmit = customerName && date1 && selectedUseCase && !week1IsFull;
+    const canSubmit = customerName && aeName && date1 && selectedUseCase && !week1IsFull;
 
     return (
       <motion.div
@@ -1213,38 +1226,13 @@ export default function App() {
 
           <div className="space-y-2">
             <label className="mono-label text-[#676c79]">AE Name</label>
-            {!aeIsNotMe ? (
-              <div className="flex items-center gap-3">
-                <div className="flex-1 p-3 border border-[#d4e8da] bg-[#F8FFFA] text-sm font-sans">
-                  {currentUser?.name || 'Unknown'}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => { setAeIsNotMe(true); setAeOverride(''); }}
-                  className="text-xs text-[#008c44] hover:underline whitespace-nowrap"
-                >
-                  Not Me
-                </button>
-              </div>
-            ) : (
-              <div className="flex items-center gap-3">
-                <input
-                  type="text"
-                  value={aeOverride}
-                  onChange={(e) => setAeOverride(e.target.value)}
-                  placeholder="Enter AE name"
-                  className="flex-1 p-3 border border-[#d4e8da] focus:border-[#008c44] outline-none"
-                  autoFocus
-                />
-                <button
-                  type="button"
-                  onClick={() => { setAeIsNotMe(false); setAeOverride(currentUser?.name || ''); }}
-                  className="text-xs text-[#676c79] hover:underline whitespace-nowrap"
-                >
-                  Use Mine
-                </button>
-              </div>
-            )}
+            <input
+              type="text"
+              value={aeName}
+              onChange={(e) => setAeName(e.target.value)}
+              placeholder="Enter AE name"
+              className="w-full p-3 border border-[#d4e8da] focus:border-[#008c44] outline-none"
+            />
           </div>
 
           {/* SA */}
@@ -1541,6 +1529,19 @@ export default function App() {
               )}
             </div>
           </div>
+
+          {/* Delete (admin only) */}
+          {isAdmin && (
+            <div className="pt-4 border-t border-[#ecedef]">
+              <button
+                onClick={() => handleDeleteKickoff(selectedKickoff.id)}
+                className="w-full flex items-center justify-center gap-2 py-3 text-sm font-sans font-medium text-red-600 border border-red-200 hover:bg-red-50 transition-colors"
+              >
+                <Trash2 size={16} />
+                Delete Kickoff
+              </button>
+            </div>
+          )}
         </div>
       </motion.div>
     );
