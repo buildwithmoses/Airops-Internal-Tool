@@ -44,6 +44,9 @@ interface Kickoff {
   eventDate?: string; // ISO date string from Google Calendar
   eventLink?: string; // Link to Google Calendar event
   useCaseType?: string; // e.g., "Content Creation", "Offsite"
+  timezone?: string;
+  arr?: string;       // Annual Recurring Revenue
+  isPoc?: boolean;    // Proof of Concept
 }
 
 const USE_CASE_TYPES = ['Content Creation', 'Content Refresh', 'Offsite'] as const;
@@ -1124,38 +1127,21 @@ export default function App() {
     const [aeOverride, setAeOverride] = useState('');
     const [aeIsNotMe, setAeIsNotMe] = useState(false);
     const aeName = aeIsNotMe ? aeOverride : (currentUser?.name || '');
-    const [selectedUseCases, setSelectedUseCases] = useState<Set<string>>(new Set());
+    const [selectedUseCase, setSelectedUseCase] = useState('');
     const [notes, setNotes] = useState('');
+    const [timezone, setTimezone] = useState('');
+    const [arr, setArr] = useState('');
+    const [isPoc, setIsPoc] = useState(false);
 
-    // Dual kickoff mode: Offsite + at least one other use case
-    const hasOffsite = selectedUseCases.has('Offsite');
-    const nonOffsiteTypes = Array.from(selectedUseCases).filter(t => t !== 'Offsite');
-    const isDualMode = hasOffsite && nonOffsiteTypes.length > 0;
-
-    // SA state — single mode uses sa1, dual mode uses both
     const [sa1, setSa1] = useState(sasSortedByCapacity[0]?.name || sas[0]?.name);
-    const [sa2, setSa2] = useState(sasSortedByCapacity[1]?.name || sas[1]?.name);
     const [date1, setDate1] = useState('');
-    const [date2, setDate2] = useState('');
 
     const derivedWeek1 = date1 ? getWeekString(new Date(date1 + 'T00:00:00')) : bookingWeek;
-    const derivedWeek2 = date2 ? getWeekString(new Date(date2 + 'T00:00:00')) : bookingWeek;
     const week1SlotsUsed = kickoffs.filter(k => k.week === derivedWeek1).length;
-    const week2SlotsUsed = kickoffs.filter(k => k.week === derivedWeek2).length;
     const week1IsFull = week1SlotsUsed >= maxSlots;
-    const week2IsFull = week2SlotsUsed >= maxSlots;
 
     const today = new Date().toISOString().split('T')[0];
     const maxDate = new Date(Date.now() + 56 * 86400000).toISOString().split('T')[0];
-
-    const toggleUseCase = (type: string) => {
-      setSelectedUseCases(prev => {
-        const next = new Set(prev);
-        if (next.has(type)) next.delete(type);
-        else next.add(type);
-        return next;
-      });
-    };
 
     const saOptions = sasSortedByCapacity.map((sa, idx) => ({
       label: idx === 0 ? `${sa.name} — Recommended` : sa.name,
@@ -1163,46 +1149,28 @@ export default function App() {
       badge: <CapacityBadge count={getEffectiveLoad(sa)} />
     }));
 
+    const useCaseOptions = USE_CASE_TYPES.map(type => ({
+      label: type,
+      value: type,
+    }));
+
     const handleSubmit = () => {
-      if (isDualMode) {
-        // Kickoff 1: Content use case(s)
-        handleAddKickoff({
-          customerName,
-          aeName,
-          saName: sa1,
-          week: derivedWeek1,
-          status: 'NOT STARTED',
-          notes,
-          eventDate: date1 ? new Date(date1 + 'T00:00:00').toISOString() : undefined,
-          useCaseType: nonOffsiteTypes.join(', '),
-        });
-        // Kickoff 2: Offsite
-        handleAddKickoff({
-          customerName,
-          aeName,
-          saName: sa2,
-          week: derivedWeek2,
-          status: 'NOT STARTED',
-          notes,
-          eventDate: date2 ? new Date(date2 + 'T00:00:00').toISOString() : undefined,
-          useCaseType: 'Offsite',
-        });
-      } else {
-        handleAddKickoff({
-          customerName,
-          aeName,
-          saName: sa1,
-          week: derivedWeek1,
-          status: 'NOT STARTED',
-          notes,
-          eventDate: date1 ? new Date(date1 + 'T00:00:00').toISOString() : undefined,
-          useCaseType: Array.from(selectedUseCases).join(', ') || undefined,
-        });
-      }
+      handleAddKickoff({
+        customerName,
+        aeName,
+        saName: sa1,
+        week: derivedWeek1,
+        status: 'NOT STARTED',
+        notes,
+        eventDate: date1 ? new Date(date1 + 'T00:00:00').toISOString() : undefined,
+        useCaseType: selectedUseCase || undefined,
+        timezone: timezone || undefined,
+        arr: arr || undefined,
+        isPoc,
+      });
     };
 
-    const canSubmit = customerName && date1 && selectedUseCases.size > 0 && !week1IsFull
-      && (!isDualMode || (date2 && !week2IsFull));
+    const canSubmit = customerName && date1 && selectedUseCase && !week1IsFull;
 
     return (
       <motion.div
@@ -1219,32 +1187,17 @@ export default function App() {
           </button>
         </div>
 
-        {isDualMode && (
-          <div className="mb-6 p-3 bg-blue-50 border border-blue-200 rounded flex items-center gap-2 text-blue-700 text-sm">
-            <AlertCircle size={16} /> Offsite + Content requires 2 SAs and 2 kickoff dates. Two kickoffs will be created.
-          </div>
-        )}
-
         <div className="space-y-6">
           {/* Use Case Type */}
           <div className="space-y-2">
             <label className="mono-label text-[#676c79]">Use Case Type</label>
-            <div className="flex flex-wrap gap-2">
-              {USE_CASE_TYPES.map(type => (
-                <button
-                  key={type}
-                  onClick={() => toggleUseCase(type)}
-                  className={`px-3 py-2 text-sm font-sans border transition-colors ${
-                    selectedUseCases.has(type)
-                      ? 'bg-[#000d05] text-white border-[#000d05]'
-                      : 'bg-white text-[#676c79] border-[#d4e8da] hover:border-[#008c44]'
-                  }`}
-                >
-                  {selectedUseCases.has(type) && <Check size={14} className="inline mr-1.5 -mt-0.5" />}
-                  {type}
-                </button>
-              ))}
-            </div>
+            <CustomSelect
+              value={selectedUseCase}
+              onChange={setSelectedUseCase}
+              labelClassName="font-sans"
+              options={useCaseOptions}
+              placeholder="Select use case..."
+            />
           </div>
 
           <div className="space-y-2">
@@ -1294,9 +1247,9 @@ export default function App() {
             )}
           </div>
 
-          {/* SA 1 */}
+          {/* SA */}
           <div className="space-y-2">
-            <label className="mono-label text-[#676c79]">{isDualMode ? 'SA 1 (Content)' : 'SA'}</label>
+            <label className="mono-label text-[#676c79]">SA</label>
             <CustomSelect
               value={sa1}
               onChange={setSa1}
@@ -1310,9 +1263,9 @@ export default function App() {
             )}
           </div>
 
-          {/* SA Lead 1 */}
+          {/* SA Lead */}
           <div className="space-y-2">
-            <label className="mono-label text-[#676c79]">{isDualMode ? 'SA Lead 1' : 'SA Lead'}</label>
+            <label className="mono-label text-[#676c79]">SA Lead</label>
             <div className="w-full p-3 border border-[#d4e8da] bg-[#F8FFFA] text-sm">
               {getSALead(sa1) ? (
                 <span className="font-sans">{getSALead(sa1)} <span className="text-[#676c79]">({SA_POD_MAP[sa1]?.pod})</span></span>
@@ -1322,39 +1275,9 @@ export default function App() {
             </div>
           </div>
 
-          {/* SA 2 + Lead (dual mode only) */}
-          {isDualMode && (
-            <>
-              <div className="space-y-2">
-                <label className="mono-label text-[#676c79]">SA 2 (Offsite)</label>
-                <CustomSelect
-                  value={sa2}
-                  onChange={setSa2}
-                  labelClassName="font-sans"
-                  options={saOptions}
-                />
-                {sa2 === sasSortedByCapacity[1]?.name && (
-                  <p className="text-xs text-[#008c44] flex items-center gap-1">
-                    <CheckCircle2 size={12} /> 2nd lowest workload ({sasSortedByCapacity[1] ? getEffectiveLoad(sasSortedByCapacity[1]) : 0} effective)
-                  </p>
-                )}
-              </div>
-              <div className="space-y-2">
-                <label className="mono-label text-[#676c79]">SA Lead 2</label>
-                <div className="w-full p-3 border border-[#d4e8da] bg-[#F8FFFA] text-sm">
-                  {getSALead(sa2) ? (
-                    <span className="font-sans">{getSALead(sa2)} <span className="text-[#676c79]">({SA_POD_MAP[sa2]?.pod})</span></span>
-                  ) : (
-                    <span className="text-[#a5aab6] italic">No pod assigned</span>
-                  )}
-                </div>
-              </div>
-            </>
-          )}
-
-          {/* Date 1 */}
+          {/* Kickoff Date */}
           <div className="space-y-2">
-            <label className="mono-label text-[#676c79]">{isDualMode ? 'Kickoff Date 1 (Content)' : 'Kickoff Date'}</label>
+            <label className="mono-label text-[#676c79]">Kickoff Date</label>
             <input
               type="date"
               value={date1}
@@ -1365,22 +1288,6 @@ export default function App() {
             />
             <p className="text-xs text-[#676c79]">Week {derivedWeek1} — {week1SlotsUsed} / {maxSlots} slots used</p>
           </div>
-
-          {/* Date 2 (dual mode only) */}
-          {isDualMode && (
-            <div className="space-y-2">
-              <label className="mono-label text-[#676c79]">Kickoff Date 2 (Offsite)</label>
-              <input
-                type="date"
-                value={date2}
-                onChange={(e) => setDate2(e.target.value)}
-                min={today}
-                max={maxDate}
-                className="w-full p-3 border border-[#d4e8da] focus:border-[#008c44] outline-none"
-              />
-              <p className="text-xs text-[#676c79]">Week {derivedWeek2} — {week2SlotsUsed} / {maxSlots} slots used</p>
-            </div>
-          )}
 
           <div className="space-y-2">
             <label className="mono-label text-[#676c79]">Notes</label>
@@ -1393,12 +1300,63 @@ export default function App() {
             />
           </div>
 
+          {/* Time Zone */}
+          <div className="space-y-2">
+            <label className="mono-label text-[#676c79]">Time Zone (Main Contact)</label>
+            <select
+              value={timezone}
+              onChange={(e) => setTimezone(e.target.value)}
+              className="w-full p-3 border border-[#d4e8da] focus:border-[#008c44] outline-none bg-white text-sm"
+            >
+              <option value="">Select time zone...</option>
+              <option value="ET">Eastern (ET)</option>
+              <option value="CT">Central (CT)</option>
+              <option value="MT">Mountain (MT)</option>
+              <option value="PT">Pacific (PT)</option>
+              <option value="AKT">Alaska (AKT)</option>
+              <option value="HT">Hawaii (HT)</option>
+              <option value="GMT">GMT / UTC</option>
+              <option value="CET">Central European (CET)</option>
+              <option value="IST">India (IST)</option>
+              <option value="JST">Japan (JST)</option>
+              <option value="AEST">Australia Eastern (AEST)</option>
+            </select>
+          </div>
+
+          {/* ARR */}
+          <div className="space-y-2">
+            <label className="mono-label text-[#676c79]">ARR</label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#676c79] text-sm">$</span>
+              <input
+                type="text"
+                value={arr}
+                onChange={(e) => setArr(e.target.value)}
+                placeholder="e.g. 50,000"
+                className="w-full p-3 pl-7 border border-[#d4e8da] focus:border-[#008c44] outline-none text-sm"
+              />
+            </div>
+          </div>
+
+          {/* POC */}
+          <div className="flex items-center gap-3">
+            <div
+              onClick={() => setIsPoc(!isPoc)}
+              className={`w-5 h-5 border flex items-center justify-center transition-colors cursor-pointer ${isPoc ? 'bg-[#008c44] border-[#008c44]' : 'border-[#d4e8da] hover:border-[#008c44]'}`}
+            >
+              {isPoc && <Check size={14} className="text-white" />}
+            </div>
+            <label onClick={() => setIsPoc(!isPoc)} className="mono-label text-[#676c79] cursor-pointer">
+              This is a Proof of Concept (POC)
+            </label>
+          </div>
+
           <button
             onClick={handleSubmit}
             disabled={!canSubmit}
             className="w-full bg-[#00ff64] text-[#000d05] py-4 font-sans font-bold text-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
-            <Plus size={20} /> {isDualMode ? 'Create 2 Kickoffs' : 'Confirm Kickoff'}
+            <Plus size={20} /> Confirm Kickoff
           </button>
         </div>
       </motion.div>
@@ -1466,6 +1424,18 @@ export default function App() {
             <div className="space-y-1">
               <label className="mono-label text-[#a5aab6]">POD</label>
               <p className="text-sm font-medium">{SA_POD_MAP[selectedKickoff.saName]?.pod || <span className="text-[#a5aab6] italic">—</span>}</p>
+            </div>
+            <div className="space-y-1">
+              <label className="mono-label text-[#a5aab6]">TIME ZONE</label>
+              <p className="text-sm font-medium">{selectedKickoff.timezone || <span className="text-[#a5aab6] italic">—</span>}</p>
+            </div>
+            <div className="space-y-1">
+              <label className="mono-label text-[#a5aab6]">ARR</label>
+              <p className="text-sm font-medium">{selectedKickoff.arr ? `$${selectedKickoff.arr}` : <span className="text-[#a5aab6] italic">—</span>}</p>
+            </div>
+            <div className="space-y-1">
+              <label className="mono-label text-[#a5aab6]">POC</label>
+              <p className="text-sm font-medium">{selectedKickoff.isPoc ? 'Yes' : 'No'}</p>
             </div>
           </div>
 
