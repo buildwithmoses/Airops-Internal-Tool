@@ -73,6 +73,13 @@ interface HubSpotDeal {
   amount: string;
   closedate: string;
   ownerId: string;
+  aeName?: string;
+}
+
+interface HubSpotAE {
+  id: string;
+  name: string;
+  email: string;
 }
 
 interface DeckResult {
@@ -655,6 +662,7 @@ export default function App() {
   const [maxSlots, setMaxSlots] = useState(10);
   const [showWelcome, setShowWelcome] = useState(false);
   const [hubspotDeals, setHubspotDeals] = useState<HubSpotDeal[]>([]);
+  const [hubspotAEs, setHubspotAEs] = useState<HubSpotAE[]>([]);
 
   // Detect /book/{id} URL for public booking page (no auth required)
   useEffect(() => {
@@ -713,6 +721,14 @@ export default function App() {
       .then(res => res.json())
       .then(json => {
         if (json.deals?.length > 0) setHubspotDeals(json.deals);
+      })
+      .catch(() => {});
+
+    // Fetch HubSpot AE list for booking dropdown
+    fetch('/api/trigger-deck?action=hubspot-aes')
+      .then(res => res.json())
+      .then(json => {
+        if (json.aes?.length > 0) setHubspotAEs(json.aes);
       })
       .catch(() => {});
 
@@ -1684,6 +1700,9 @@ export default function App() {
     const [dealSearch, setDealSearch] = useState('');
     const [dealDropdownOpen, setDealDropdownOpen] = useState(false);
     const dealRef = useRef<HTMLDivElement>(null);
+    const [aeSearch, setAeSearch] = useState('');
+    const [aeDropdownOpen, setAeDropdownOpen] = useState(false);
+    const aeRef = useRef<HTMLDivElement>(null);
     const [notes, setNotes] = useState('');
     const [timezone, setTimezone] = useState('');
     const [arr, setArr] = useState('');
@@ -1725,10 +1744,17 @@ export default function App() {
       d.name.toLowerCase().includes(dealSearch.toLowerCase())
     );
 
+    const filteredAEs = hubspotAEs.filter((a: HubSpotAE) =>
+      a.name.toLowerCase().includes(aeSearch.toLowerCase())
+    );
+
     useEffect(() => {
       const handler = (e: MouseEvent) => {
         if (dealRef.current && !dealRef.current.contains(e.target as Node)) {
           setDealDropdownOpen(false);
+        }
+        if (aeRef.current && !aeRef.current.contains(e.target as Node)) {
+          setAeDropdownOpen(false);
         }
       };
       document.addEventListener('mousedown', handler);
@@ -1840,6 +1866,7 @@ export default function App() {
                             onClick={() => {
                               setCustomerName(deal.name);
                               if (deal.amount) setArr(deal.amount);
+                              if (deal.aeName) setAeName(deal.aeName);
                               setDealDropdownOpen(false);
                               setDealSearch('');
                             }}
@@ -1869,13 +1896,63 @@ export default function App() {
 
           <div className="space-y-2">
             <label className="mono-label text-[#676c79]">AE Name</label>
-            <input
-              type="text"
-              value={aeName}
-              onChange={(e) => setAeName(e.target.value)}
-              placeholder="Enter AE name"
-              className="w-full p-3 border border-[#d4e8da] focus:border-[#008c44] outline-none"
-            />
+            {hubspotAEs.length > 0 ? (
+              <div ref={aeRef} className="relative">
+                <div
+                  onClick={() => setAeDropdownOpen(!aeDropdownOpen)}
+                  className="w-full p-3 border border-[#d4e8da] focus-within:border-[#008c44] cursor-pointer flex items-center justify-between"
+                >
+                  <span className={`text-sm ${aeName ? 'text-[#09090b]' : 'text-[#a5aab6]'}`}>
+                    {aeName || 'Select AE...'}
+                  </span>
+                  <ChevronRight size={16} className={`text-[#676c79] transition-transform ${aeDropdownOpen ? 'rotate-90' : ''}`} />
+                </div>
+                {aeDropdownOpen && (
+                  <div className="absolute top-full left-0 w-full bg-white border border-[#d4e8da] z-50 shadow-xl mt-1 max-h-72 overflow-hidden flex flex-col">
+                    <div className="p-2 border-b border-[#ecedef]">
+                      <div className="flex items-center gap-2 px-2 py-1.5 bg-[#f8f8f8] border border-[#d4e8da]">
+                        <Search size={14} className="text-[#a5aab6] flex-shrink-0" />
+                        <input
+                          type="text"
+                          value={aeSearch}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setAeSearch(e.target.value)}
+                          placeholder="Search AEs..."
+                          className="w-full bg-transparent outline-none text-sm"
+                          autoFocus
+                        />
+                      </div>
+                    </div>
+                    <div className="overflow-y-auto max-h-56">
+                      {filteredAEs.length === 0 ? (
+                        <div className="px-4 py-3 text-sm text-[#a5aab6] text-center">No AEs found</div>
+                      ) : (
+                        filteredAEs.map((ae: HubSpotAE) => (
+                          <button
+                            key={ae.id}
+                            onClick={() => {
+                              setAeName(ae.name);
+                              setAeDropdownOpen(false);
+                              setAeSearch('');
+                            }}
+                            className={`w-full px-4 py-2.5 text-left text-sm hover:bg-[#f0faf4] transition-colors ${aeName === ae.name ? 'bg-[#f0faf4] font-bold' : ''}`}
+                          >
+                            <span className="font-sans">{ae.name}</span>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <input
+                type="text"
+                value={aeName}
+                onChange={(e) => setAeName(e.target.value)}
+                placeholder="Enter AE name"
+                className="w-full p-3 border border-[#d4e8da] focus:border-[#008c44] outline-none"
+              />
+            )}
           </div>
 
           {/* SA (auto-assigned, not editable) */}

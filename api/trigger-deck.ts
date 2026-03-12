@@ -379,6 +379,32 @@ export default async function handler(req: any, res: any) {
       return sendJson(res, 200, { deals });
     }
 
+    // GET: Fetch AE list from HubSpot owners via Retool workflow
+    if (action === 'hubspot-aes') {
+      if (req.method !== 'GET') return sendJson(res, 405, { error: 'Method not allowed' });
+
+      const webhookUrl = process.env.RETOOL_HUBSPOT_AES_WEBHOOK_URL;
+      const apiKey = process.env.RETOOL_HUBSPOT_AES_API_KEY;
+      if (!webhookUrl || !apiKey) {
+        return sendJson(res, 500, { error: 'Retool HubSpot AEs webhook not configured' });
+      }
+
+      const resp = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Workflow-Api-Key': apiKey,
+        },
+        body: '{}',
+      });
+
+      const result = await resp.json();
+      const aes = result.data?.aes || [];
+
+      res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=600');
+      return sendJson(res, 200, { aes });
+    }
+
     return sendJson(res, 400, { error: `Unknown action: ${action}` });
   } catch (err: any) {
     return sendJson(res, 500, { error: err.message });
