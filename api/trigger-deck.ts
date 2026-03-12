@@ -346,6 +346,39 @@ export default async function handler(req: any, res: any) {
       return sendJson(res, 200, { ok: true });
     }
 
+    // GET: Fetch closed-won HubSpot deals via Retool workflow
+    if (action === 'hubspot-deals') {
+      if (req.method !== 'GET') return sendJson(res, 405, { error: 'Method not allowed' });
+
+      const webhookUrl = process.env.RETOOL_HUBSPOT_WEBHOOK_URL;
+      const apiKey = process.env.RETOOL_HUBSPOT_API_KEY;
+      if (!webhookUrl || !apiKey) {
+        return sendJson(res, 500, { error: 'Retool HubSpot webhook not configured' });
+      }
+
+      const resp = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Workflow-Api-Key': apiKey,
+        },
+        body: '{}',
+      });
+
+      const result = await resp.json();
+      // Retool returns { data: { statusCode, body } } where body is a JSON string
+      let deals: any[] = [];
+      try {
+        const body = typeof result.data?.body === 'string' ? JSON.parse(result.data.body) : result.data?.body;
+        deals = body?.deals || [];
+      } catch {
+        deals = [];
+      }
+
+      res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=600');
+      return sendJson(res, 200, { deals });
+    }
+
     return sendJson(res, 400, { error: `Unknown action: ${action}` });
   } catch (err: any) {
     return sendJson(res, 500, { error: err.message });

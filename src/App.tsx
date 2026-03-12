@@ -67,6 +67,14 @@ interface Kickoff {
 
 const USE_CASE_TYPES = ['Content Creation', 'Content Refresh', 'Offsite'] as const;
 
+interface HubSpotDeal {
+  id: string;
+  name: string;
+  amount: string;
+  closedate: string;
+  ownerId: string;
+}
+
 interface DeckResult {
   deckUrl: string;
   deckId: string;
@@ -646,6 +654,7 @@ export default function App() {
   const [gcalConnected, setGcalConnected] = useState(false);
   const [maxSlots, setMaxSlots] = useState(10);
   const [showWelcome, setShowWelcome] = useState(false);
+  const [hubspotDeals, setHubspotDeals] = useState<HubSpotDeal[]>([]);
 
   // Detect /book/{id} URL for public booking page (no auth required)
   useEffect(() => {
@@ -696,6 +705,14 @@ export default function App() {
         if (json.kickoffs?.length > 0) {
           setKickoffs(json.kickoffs);
         }
+      })
+      .catch(() => {});
+
+    // Fetch HubSpot closed-won deals for booking dropdown
+    fetch('/api/trigger-deck?action=hubspot-deals')
+      .then(res => res.json())
+      .then(json => {
+        if (json.deals?.length > 0) setHubspotDeals(json.deals);
       })
       .catch(() => {});
 
@@ -1664,6 +1681,9 @@ export default function App() {
     const [customerName, setCustomerName] = useState('');
     const [aeName, setAeName] = useState('');
     const [selectedUseCases, setSelectedUseCases] = useState<string[]>([]);
+    const [dealSearch, setDealSearch] = useState('');
+    const [dealDropdownOpen, setDealDropdownOpen] = useState(false);
+    const dealRef = useRef<HTMLDivElement>(null);
     const [notes, setNotes] = useState('');
     const [timezone, setTimezone] = useState('');
     const [arr, setArr] = useState('');
@@ -1700,6 +1720,20 @@ export default function App() {
         isPoc,
       });
     };
+
+    const filteredDeals = hubspotDeals.filter((d: HubSpotDeal) =>
+      d.name.toLowerCase().includes(dealSearch.toLowerCase())
+    );
+
+    useEffect(() => {
+      const handler = (e: MouseEvent) => {
+        if (dealRef.current && !dealRef.current.contains(e.target as Node)) {
+          setDealDropdownOpen(false);
+        }
+      };
+      document.addEventListener('mousedown', handler);
+      return () => document.removeEventListener('mousedown', handler);
+    }, []);
 
     const canSubmit = customerName && aeName && date1 && selectedUseCases.length > 0 && !week1IsFull;
 
@@ -1770,13 +1804,67 @@ export default function App() {
 
           <div className="space-y-2">
             <label className="mono-label text-[#676c79]">Customer Name</label>
-            <input
-              type="text"
-              value={customerName}
-              onChange={(e) => setCustomerName(e.target.value)}
-              placeholder="e.g. Acme Corp"
-              className="w-full p-3 border border-[#d4e8da] focus:border-[#008c44] outline-none"
-            />
+            {hubspotDeals.length > 0 ? (
+              <div ref={dealRef} className="relative">
+                <div
+                  onClick={() => setDealDropdownOpen(!dealDropdownOpen)}
+                  className="w-full p-3 border border-[#d4e8da] focus-within:border-[#008c44] cursor-pointer flex items-center justify-between"
+                >
+                  <span className={`text-sm ${customerName ? 'text-[#09090b]' : 'text-[#a5aab6]'}`}>
+                    {customerName || 'Select a deal...'}
+                  </span>
+                  <ChevronRight size={16} className={`text-[#676c79] transition-transform ${dealDropdownOpen ? 'rotate-90' : ''}`} />
+                </div>
+                {dealDropdownOpen && (
+                  <div className="absolute top-full left-0 w-full bg-white border border-[#d4e8da] z-50 shadow-xl mt-1 max-h-72 overflow-hidden flex flex-col">
+                    <div className="p-2 border-b border-[#ecedef]">
+                      <div className="flex items-center gap-2 px-2 py-1.5 bg-[#f8f8f8] border border-[#d4e8da]">
+                        <Search size={14} className="text-[#a5aab6] flex-shrink-0" />
+                        <input
+                          type="text"
+                          value={dealSearch}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDealSearch(e.target.value)}
+                          placeholder="Search deals..."
+                          className="w-full bg-transparent outline-none text-sm"
+                          autoFocus
+                        />
+                      </div>
+                    </div>
+                    <div className="overflow-y-auto max-h-56">
+                      {filteredDeals.length === 0 ? (
+                        <div className="px-4 py-3 text-sm text-[#a5aab6] text-center">No deals found</div>
+                      ) : (
+                        filteredDeals.map((deal: HubSpotDeal) => (
+                          <button
+                            key={deal.id}
+                            onClick={() => {
+                              setCustomerName(deal.name);
+                              if (deal.amount) setArr(deal.amount);
+                              setDealDropdownOpen(false);
+                              setDealSearch('');
+                            }}
+                            className={`w-full px-4 py-2.5 text-left text-sm hover:bg-[#f0faf4] transition-colors flex items-center justify-between ${customerName === deal.name ? 'bg-[#f0faf4] font-bold' : ''}`}
+                          >
+                            <span className="font-sans">{deal.name}</span>
+                            {deal.amount && (
+                              <span className="text-xs text-[#676c79] ml-2">${Number(deal.amount).toLocaleString()}</span>
+                            )}
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <input
+                type="text"
+                value={customerName}
+                onChange={(e) => setCustomerName(e.target.value)}
+                placeholder="e.g. Acme Corp"
+                className="w-full p-3 border border-[#d4e8da] focus:border-[#008c44] outline-none"
+              />
+            )}
           </div>
 
           <div className="space-y-2">
