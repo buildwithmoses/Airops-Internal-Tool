@@ -53,6 +53,16 @@ interface Kickoff {
   slackInternalChannelId?: string;
   slackExternalChannelId?: string;
   slackConnectInviteLink?: string;
+  // Scheduling fields
+  internalMeetingRunId?: string;
+  internalMeetingTime?: string;
+  externalMeetingRunId?: string;
+  externalMeetingTime?: string;
+  externalBookingLink?: string;
+  schedulingStatus?: {
+    internal: 'not_started' | 'finding_times' | 'waiting' | 'confirmed';
+    external: 'not_started' | 'finding_times' | 'waiting' | 'confirmed';
+  };
 }
 
 const USE_CASE_TYPES = ['Content Creation', 'Content Refresh', 'Offsite'] as const;
@@ -110,6 +120,28 @@ const SA_POD_MAP: Record<string, { pod: string; lead: string }> = {
 };
 
 const getSALead = (saName: string): string | null => SA_POD_MAP[saName]?.lead || null;
+
+// SA name → email mapping for calendar lookups
+const SA_EMAIL_MAP: Record<string, string> = {
+  "Aaron Lit": "aaron@airops.com",
+  "AJ Diaz": "aj@airops.com",
+  "Andreea Volzer": "andreea.elena@airops.com",
+  "Anton O'Malley": "anton@airops.com",
+  "Arnett Shen": "arnett.shen@airops.com",
+  "Diana Shiling": "diana@airops.com",
+  "Elmi Abdullahi": "elmi@airops.com",
+  "Henry Moses Jr": "henry.moses@airops.com",
+  "Henry Young": "henry@airops.com",
+  "Jeremy Kao": "jeremy@airops.com",
+  "Joel Fazecas": "joel@airops.com",
+  "John Sellers": "john@airops.com",
+  "Melanie Dell'Olio": "melanie@airops.com",
+  "Palmer Jones": "palmer@airops.com",
+  "Richard Li": "richard@airops.com",
+  "Shahbaz Mahmood": "shahbaz@airops.com",
+  "William Reed": "will@airops.com",
+  "Zoe Febrero": "zoe@airops.com",
+};
 
 const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 80);
 
@@ -361,10 +393,252 @@ const CustomSelect = ({ value, onChange, options, placeholder, className, labelC
   );
 };
 
+// --- Public Booking Page (no auth) ---
+interface BookingSlot {
+  start: string; // ISO datetime
+  end: string;
+}
+
+function BookingPage({ kickoffId }: { kickoffId: string }) {
+  const [slots, setSlots] = useState<BookingSlot[]>([]);
+  const [customerName, setCustomerName] = useState('');
+  const [timezone, setTimezone] = useState('ET');
+  const [loading, setLoading] = useState(true);
+  const [selectedSlot, setSelectedSlot] = useState<BookingSlot | null>(null);
+  const [clientName, setClientName] = useState('');
+  const [clientEmail, setClientEmail] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [confirmed, setConfirmed] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch(`/api/booking?action=slots&kickoffId=${kickoffId}`)
+      .then(r => r.json())
+      .then(json => {
+        setSlots(json.slots || []);
+        setCustomerName(json.customerName || '');
+        setTimezone(json.timezone || 'ET');
+        setLoading(false);
+      })
+      .catch(() => {
+        setError('Failed to load available times');
+        setLoading(false);
+      });
+  }, [kickoffId]);
+
+  const handleConfirm = async () => {
+    if (!selectedSlot || !clientName.trim() || !clientEmail.trim()) return;
+    setSubmitting(true);
+    try {
+      const res = await fetch('/api/booking?action=confirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          kickoffId,
+          selectedTime: selectedSlot.start,
+          clientName: clientName.trim(),
+          clientEmail: clientEmail.trim(),
+        }),
+      });
+      const json = await res.json();
+      if (json.ok) {
+        setConfirmed(true);
+      } else {
+        setError(json.error || 'Failed to confirm booking');
+      }
+    } catch {
+      setError('Failed to confirm booking');
+    }
+    setSubmitting(false);
+  };
+
+  // Group slots by date
+  const slotsByDate: [string, BookingSlot[]][] = useMemo(() => {
+    const grouped: Record<string, BookingSlot[]> = {};
+    for (const slot of slots) {
+      const dateKey = new Date(slot.start).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+      if (!grouped[dateKey]) grouped[dateKey] = [];
+      grouped[dateKey].push(slot);
+    }
+    return Object.entries(grouped);
+  }, [slots]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-[#F8FFFA]">
+        <div className="text-center">
+          <div className="w-8 h-8 border-2 border-[#008c44] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-[#676c79] text-sm font-sans">Loading available times...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (confirmed) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-[#F8FFFA]">
+        <div className="text-center max-w-md mx-auto p-8">
+          <img
+            src="https://mms.businesswire.com/media/20251110823725/en/2637492/4/AirOps_logo.jpg"
+            alt="AirOps Logo"
+            className="h-10 mx-auto mb-6"
+          />
+          <div className="w-16 h-16 bg-[#008c44] rounded-full flex items-center justify-center mx-auto mb-4">
+            <Check size={32} className="text-white" />
+          </div>
+          <h1 className="text-2xl font-sans font-bold text-[#000d05] mb-2">Meeting Confirmed!</h1>
+          <p className="text-[#676c79] text-sm mb-4">
+            Your kickoff meeting has been scheduled for:
+          </p>
+          <p className="text-lg font-bold text-[#000d05] mb-1">
+            {selectedSlot && new Date(selectedSlot.start).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+          </p>
+          <p className="text-[#008c44] font-medium">
+            {selectedSlot && new Date(selectedSlot.start).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+            {' - '}
+            {selectedSlot && new Date(selectedSlot.end).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+            {' '}({timezone})
+          </p>
+          <p className="text-[#676c79] text-xs mt-6">A calendar invite will be sent to {clientEmail}</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-[#F8FFFA]">
+      {/* Header */}
+      <header className="bg-white border-b border-[#d4e8da] px-6 py-4">
+        <div className="max-w-3xl mx-auto flex items-center justify-between">
+          <img
+            src="https://mms.businesswire.com/media/20251110823725/en/2637492/4/AirOps_logo.jpg"
+            alt="AirOps Logo"
+            className="h-8"
+          />
+          <span className="text-xs text-[#676c79]">Kickoff Scheduling</span>
+        </div>
+      </header>
+
+      {/* Content */}
+      <div className="max-w-3xl mx-auto px-6 py-8">
+        <div className="mb-8">
+          <h1 className="text-2xl font-sans font-bold text-[#000d05] mb-1">
+            Schedule Your Kickoff{customerName ? ` — ${customerName}` : ''}
+          </h1>
+          <p className="text-[#676c79] text-sm">
+            Select an available time slot below. All times shown in {timezone}.
+          </p>
+        </div>
+
+        {error && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 text-sm rounded">
+            {error}
+          </div>
+        )}
+
+        {slots.length === 0 ? (
+          <div className="text-center py-16">
+            <Clock size={48} className="text-[#d4e8da] mx-auto mb-4" />
+            <p className="text-[#676c79] text-sm">No available time slots at the moment.</p>
+            <p className="text-[#a5aab6] text-xs mt-1">Please check back later or contact your AirOps representative.</p>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {/* Time slots grouped by date */}
+            <div className="space-y-4">
+              {slotsByDate.map(([dateLabel, dateSlots]) => (
+                <div key={dateLabel} className="bg-white border border-[#d4e8da] overflow-hidden">
+                  <div className="px-4 py-2 bg-[#f0faf4] border-b border-[#d4e8da]">
+                    <p className="text-sm font-bold text-[#000d05]">{dateLabel}</p>
+                  </div>
+                  <div className="p-4 flex flex-wrap gap-2">
+                    {dateSlots.map((slot, i) => {
+                      const isSelected = selectedSlot?.start === slot.start;
+                      return (
+                        <button
+                          key={i}
+                          onClick={() => setSelectedSlot(slot)}
+                          className={`px-4 py-2 text-sm font-medium border transition-all ${
+                            isSelected
+                              ? 'bg-[#008c44] text-white border-[#008c44]'
+                              : 'bg-white text-[#09090b] border-[#d4e8da] hover:border-[#008c44] hover:bg-[#f0faf4]'
+                          }`}
+                        >
+                          {new Date(slot.start).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Confirmation form */}
+            {selectedSlot && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-white border border-[#d4e8da] p-6 space-y-4"
+              >
+                <div>
+                  <p className="text-sm font-bold text-[#000d05] mb-1">Confirm Your Meeting</p>
+                  <p className="text-xs text-[#676c79]">
+                    {new Date(selectedSlot.start).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+                    {' at '}
+                    {new Date(selectedSlot.start).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                    {' '}({timezone})
+                  </p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-[#676c79] uppercase tracking-wide mb-1">Your Name</label>
+                    <input
+                      type="text"
+                      value={clientName}
+                      onChange={e => setClientName(e.target.value)}
+                      placeholder="John Smith"
+                      className="w-full p-3 border border-[#d4e8da] focus:border-[#008c44] outline-none text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-[#676c79] uppercase tracking-wide mb-1">Your Email</label>
+                    <input
+                      type="email"
+                      value={clientEmail}
+                      onChange={e => setClientEmail(e.target.value)}
+                      placeholder="john@company.com"
+                      className="w-full p-3 border border-[#d4e8da] focus:border-[#008c44] outline-none text-sm"
+                    />
+                  </div>
+                </div>
+                <button
+                  onClick={handleConfirm}
+                  disabled={!clientName.trim() || !clientEmail.trim() || submitting}
+                  className="w-full py-3 bg-[#008c44] text-white text-sm font-bold hover:bg-[#006d35] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {submitting ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <Loader2 size={14} className="animate-spin" />
+                      Confirming...
+                    </span>
+                  ) : (
+                    'Confirm Meeting'
+                  )}
+                </button>
+              </motion.div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [authState, setAuthState] = useState<'checking' | 'authenticated' | 'unauthenticated'>('checking');
   const [currentUser, setCurrentUser] = useState<{ email: string; name: string; picture: string } | null>(null);
-  const [view, setView] = useState<'schedule' | 'all' | 'capacity' | 'settings'>('schedule');
+  const [view, setView] = useState<'schedule' | 'all' | 'capacity' | 'settings' | 'booking'>('schedule');
+  const [bookingKickoffId, setBookingKickoffId] = useState<string | null>(null);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [kickoffs, setKickoffs] = useState<Kickoff[]>(SEED_KICKOFFS);
   const [sas, setSas] = useState<SA[]>(INITIAL_SAS);
@@ -373,10 +647,24 @@ export default function App() {
   const [maxSlots, setMaxSlots] = useState(10);
   const [showWelcome, setShowWelcome] = useState(false);
 
+  // Detect /book/{id} URL for public booking page (no auth required)
+  useEffect(() => {
+    const bookMatch = window.location.pathname.match(/^\/book\/(.+)$/);
+    if (bookMatch) {
+      setBookingKickoffId(bookMatch[1]);
+      setView('booking');
+    }
+  }, []);
+
   // Check authentication on load
   useEffect(() => {
     if (window.location.search.includes('gcal=connected')) {
       window.history.replaceState({}, '', '/');
+    }
+    // Skip auth check if on booking page (public)
+    if (view === 'booking') {
+      setAuthState('authenticated'); // Allow rendering without login
+      return;
     }
     fetch('/api/auth-check')
       .then(res => res.json())
@@ -493,6 +781,9 @@ export default function App() {
   const [deckResults, setDeckResults] = useState<Record<string, DeckResult>>({});
   const [slackRunId, setSlackRunId] = useState<string | null>(null);
   const [slackKickoffId, setSlackKickoffId] = useState<string | null>(null);
+  const [scheduleInternalRunId, setScheduleInternalRunId] = useState<string | null>(null);
+  const [scheduleExternalRunId, setScheduleExternalRunId] = useState<string | null>(null);
+  const [scheduleKickoffId, setScheduleKickoffId] = useState<string | null>(null);
 
   const nextWeeks = useMemo(() => getNextWeeks(), []);
 
@@ -572,6 +863,104 @@ export default function App() {
     }, 3000);
     return () => clearInterval(interval);
   }, [slackRunId, slackKickoffId]);
+
+  // Poll for internal scheduling agent completion
+  useEffect(() => {
+    if (!scheduleInternalRunId || !scheduleKickoffId) return;
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/trigger-deck?action=schedule-status&runId=${scheduleInternalRunId}&kickoffId=${scheduleKickoffId}&type=internal`);
+        const json = await res.json();
+        if (json.status === 'COMPLETED' && json.output) {
+          const output = json.output;
+          setKickoffs(prev => prev.map(k => {
+            if (k.id === scheduleKickoffId) {
+              return {
+                ...k,
+                internalMeetingTime: output.internalMeetingTime,
+                schedulingStatus: {
+                  ...(k.schedulingStatus || { internal: 'not_started', external: 'not_started' }),
+                  internal: 'confirmed',
+                },
+              };
+            }
+            return k;
+          }));
+          setScheduleInternalRunId(null);
+          if (!scheduleExternalRunId) setScheduleKickoffId(null);
+        } else if (json.status === 'FAILED' || json.status === 'CANCELED') {
+          setScheduleInternalRunId(null);
+          if (!scheduleExternalRunId) setScheduleKickoffId(null);
+        } else if (json.status === 'EXECUTING') {
+          // Update to 'waiting' once agent has been running (times posted in Slack)
+          setKickoffs(prev => prev.map(k => {
+            if (k.id === scheduleKickoffId && k.schedulingStatus?.internal === 'finding_times') {
+              return {
+                ...k,
+                schedulingStatus: {
+                  ...(k.schedulingStatus || { internal: 'not_started', external: 'not_started' }),
+                  internal: 'waiting',
+                },
+              };
+            }
+            return k;
+          }));
+        }
+      } catch {
+        // keep polling
+      }
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [scheduleInternalRunId, scheduleKickoffId, scheduleExternalRunId]);
+
+  // Poll for external scheduling agent completion
+  useEffect(() => {
+    if (!scheduleExternalRunId || !scheduleKickoffId) return;
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/trigger-deck?action=schedule-status&runId=${scheduleExternalRunId}&kickoffId=${scheduleKickoffId}&type=external`);
+        const json = await res.json();
+        if (json.status === 'COMPLETED' && json.output) {
+          const output = json.output;
+          setKickoffs(prev => prev.map(k => {
+            if (k.id === scheduleKickoffId) {
+              return {
+                ...k,
+                externalMeetingTime: output.externalMeetingTime,
+                externalBookingLink: output.externalBookingLink,
+                schedulingStatus: {
+                  ...(k.schedulingStatus || { internal: 'not_started', external: 'not_started' }),
+                  external: output.externalMeetingTime ? 'confirmed' : 'waiting',
+                },
+              };
+            }
+            return k;
+          }));
+          setScheduleExternalRunId(null);
+          if (!scheduleInternalRunId) setScheduleKickoffId(null);
+        } else if (json.status === 'FAILED' || json.status === 'CANCELED') {
+          setScheduleExternalRunId(null);
+          if (!scheduleInternalRunId) setScheduleKickoffId(null);
+        } else if (json.status === 'EXECUTING') {
+          setKickoffs(prev => prev.map(k => {
+            if (k.id === scheduleKickoffId && k.schedulingStatus?.external === 'finding_times') {
+              return {
+                ...k,
+                schedulingStatus: {
+                  ...(k.schedulingStatus || { internal: 'not_started', external: 'not_started' }),
+                  external: 'waiting',
+                },
+              };
+            }
+            return k;
+          }));
+        }
+      } catch {
+        // keep polling
+      }
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [scheduleExternalRunId, scheduleKickoffId, scheduleInternalRunId]);
 
   // Fetch Slack users when modal opens
   useEffect(() => {
@@ -735,6 +1124,69 @@ export default function App() {
         if (json.ok && json.runId) {
           setSlackRunId(json.runId);
           setSlackKickoffId(kickoff.id);
+        }
+      })
+      .catch(() => {});
+  };
+
+  const triggerScheduleInternal = (kickoff: Kickoff) => {
+    const saLead = getSALead(kickoff.saName) || '';
+    fetch('/api/trigger-deck?action=schedule-internal', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        kickoffId: kickoff.id,
+        customerName: kickoff.customerName,
+        aeName: kickoff.aeName,
+        aeEmail: SA_EMAIL_MAP[kickoff.aeName] || '',
+        saName: kickoff.saName,
+        saEmail: SA_EMAIL_MAP[kickoff.saName] || '',
+        saLeadName: saLead,
+        saLeadEmail: SA_EMAIL_MAP[saLead] || '',
+        slackInternalChannelId: kickoff.slackInternalChannelId || '',
+        timezone: kickoff.timezone || 'ET',
+      }),
+    })
+      .then(r => r.json())
+      .then(json => {
+        if (json.ok && json.runId) {
+          setScheduleInternalRunId(json.runId);
+          setScheduleKickoffId(kickoff.id);
+          setKickoffs(prev => prev.map(k =>
+            k.id === kickoff.id
+              ? { ...k, internalMeetingRunId: json.runId, schedulingStatus: { ...(k.schedulingStatus || { internal: 'not_started', external: 'not_started' }), internal: 'finding_times' } }
+              : k
+          ));
+        }
+      })
+      .catch(() => {});
+  };
+
+  const triggerScheduleExternal = (kickoff: Kickoff) => {
+    fetch('/api/trigger-deck?action=schedule-external', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        kickoffId: kickoff.id,
+        customerName: kickoff.customerName,
+        aeName: kickoff.aeName,
+        aeEmail: SA_EMAIL_MAP[kickoff.aeName] || '',
+        saName: kickoff.saName,
+        saEmail: SA_EMAIL_MAP[kickoff.saName] || '',
+        slackInternalChannelId: kickoff.slackInternalChannelId || '',
+        timezone: kickoff.timezone || 'ET',
+      }),
+    })
+      .then(r => r.json())
+      .then(json => {
+        if (json.ok && json.runId) {
+          setScheduleExternalRunId(json.runId);
+          setScheduleKickoffId(kickoff.id);
+          setKickoffs(prev => prev.map(k =>
+            k.id === kickoff.id
+              ? { ...k, externalMeetingRunId: json.runId, schedulingStatus: { ...(k.schedulingStatus || { internal: 'not_started', external: 'not_started' }), external: 'finding_times' } }
+              : k
+          ));
         }
       })
       .catch(() => {});
@@ -1639,6 +2091,111 @@ export default function App() {
             </div>
           )}
 
+          {/* Scheduling */}
+          <div className="space-y-3">
+            <label className="mono-label text-[#676c79]">MEETING SCHEDULING</label>
+            <div className="space-y-3">
+              {/* Internal Sync */}
+              <div className="p-4 bg-[#F8FFFA] border border-[#d4e8da] space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-bold text-[#676c79] uppercase tracking-wide">Internal Sync</p>
+                  {selectedKickoff.schedulingStatus?.internal === 'confirmed' && selectedKickoff.internalMeetingTime && (
+                    <span className="flex items-center gap-1 text-xs text-[#008c44] font-medium">
+                      <CheckCircle2 size={12} /> Confirmed
+                    </span>
+                  )}
+                </div>
+                {(!selectedKickoff.schedulingStatus || selectedKickoff.schedulingStatus.internal === 'not_started') && (
+                  <button
+                    onClick={() => triggerScheduleInternal(selectedKickoff)}
+                    disabled={!selectedKickoff.slackInternalChannelId}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-[#00ff64] text-[#000d05] text-xs font-bold hover:opacity-90 transition-opacity rounded-sm disabled:opacity-40 disabled:cursor-not-allowed"
+                    title={!selectedKickoff.slackInternalChannelId ? 'Create Slack channels first' : ''}
+                  >
+                    <Calendar size={12} />
+                    Schedule Internal Sync
+                  </button>
+                )}
+                {selectedKickoff.schedulingStatus?.internal === 'finding_times' && (
+                  <div className="flex items-center gap-2 text-sm text-[#676c79]">
+                    <Loader2 size={14} className="animate-spin" />
+                    Finding available times...
+                  </div>
+                )}
+                {selectedKickoff.schedulingStatus?.internal === 'waiting' && (
+                  <div className="flex items-center gap-2 text-sm text-[#676c79]">
+                    <Clock size={14} />
+                    Suggested times posted in #{selectedKickoff.slackInternalChannelId ? `c-internal-${slugify(selectedKickoff.customerName)}` : 'slack'}
+                  </div>
+                )}
+                {selectedKickoff.schedulingStatus?.internal === 'confirmed' && selectedKickoff.internalMeetingTime && (
+                  <p className="text-sm font-medium text-[#09090b]">
+                    {new Date(selectedKickoff.internalMeetingTime).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                  </p>
+                )}
+              </div>
+
+              {/* External Kickoff */}
+              <div className="p-4 bg-[#F8FFFA] border border-[#d4e8da] space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-bold text-[#676c79] uppercase tracking-wide">External Kickoff</p>
+                  {selectedKickoff.schedulingStatus?.external === 'confirmed' && selectedKickoff.externalMeetingTime && (
+                    <span className="flex items-center gap-1 text-xs text-[#008c44] font-medium">
+                      <CheckCircle2 size={12} /> Confirmed
+                    </span>
+                  )}
+                </div>
+                {(!selectedKickoff.schedulingStatus || selectedKickoff.schedulingStatus.external === 'not_started') && (
+                  <button
+                    onClick={() => triggerScheduleExternal(selectedKickoff)}
+                    disabled={!selectedKickoff.slackInternalChannelId}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-[#00ff64] text-[#000d05] text-xs font-bold hover:opacity-90 transition-opacity rounded-sm disabled:opacity-40 disabled:cursor-not-allowed"
+                    title={!selectedKickoff.slackInternalChannelId ? 'Create Slack channels first' : ''}
+                  >
+                    <Calendar size={12} />
+                    Generate Booking Link
+                  </button>
+                )}
+                {selectedKickoff.schedulingStatus?.external === 'finding_times' && (
+                  <div className="flex items-center gap-2 text-sm text-[#676c79]">
+                    <Loader2 size={14} className="animate-spin" />
+                    Generating booking link...
+                  </div>
+                )}
+                {selectedKickoff.schedulingStatus?.external === 'waiting' && (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 text-sm text-[#676c79]">
+                      <Clock size={14} />
+                      Waiting for client to book
+                    </div>
+                    {selectedKickoff.externalBookingLink && (
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          readOnly
+                          value={selectedKickoff.externalBookingLink}
+                          className="flex-1 p-2 border border-[#d4e8da] bg-white text-xs text-[#676c79] outline-none"
+                        />
+                        <button
+                          onClick={() => navigator.clipboard.writeText(selectedKickoff.externalBookingLink!)}
+                          className="p-2 border border-[#d4e8da] hover:bg-[#f0faf4] transition-colors"
+                          title="Copy booking link"
+                        >
+                          <Copy size={14} className="text-[#676c79]" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {selectedKickoff.schedulingStatus?.external === 'confirmed' && selectedKickoff.externalMeetingTime && (
+                  <p className="text-sm font-medium text-[#09090b]">
+                    {new Date(selectedKickoff.externalMeetingTime).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+
           {/* Notes */}
           <div className="space-y-2">
             <label className="mono-label text-[#676c79]">NOTES</label>
@@ -1697,6 +2254,11 @@ export default function App() {
   };
 
   // Auth gate - show login screen if not authenticated
+  // Public booking page — no auth required
+  if (view === 'booking' && bookingKickoffId) {
+    return <BookingPage kickoffId={bookingKickoffId} />;
+  }
+
   if (authState === 'checking') {
     return (
       <div className="flex items-center justify-center min-h-screen bg-[#F8FFFA]">

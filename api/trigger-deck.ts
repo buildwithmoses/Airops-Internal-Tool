@@ -173,6 +173,136 @@ export default async function handler(req: any, res: any) {
       return sendJson(res, 200, { result });
     }
 
+    // POST: Trigger internal meeting scheduling
+    if (action === 'schedule-internal') {
+      if (req.method !== 'POST') return sendJson(res, 405, { error: 'Method not allowed' });
+      const payload = JSON.parse(await readBody(req));
+      if (!payload.kickoffId) return sendJson(res, 400, { error: 'Missing kickoffId' });
+
+      const { tasks } = await import('@trigger.dev/sdk/v3');
+      const handle = await tasks.trigger('kickoff-schedule-internal', {
+        kickoffId: payload.kickoffId,
+        customerName: payload.customerName,
+        aeName: payload.aeName,
+        aeEmail: payload.aeEmail,
+        saName: payload.saName,
+        saEmail: payload.saEmail,
+        saLeadName: payload.saLeadName,
+        saLeadEmail: payload.saLeadEmail,
+        slackInternalChannelId: payload.slackInternalChannelId,
+        timezone: payload.timezone,
+      });
+
+      // Update kickoff scheduling status in Redis
+      const redis = await getRedis();
+      const raw = await redis.get(`kickoff:${payload.kickoffId}`);
+      if (raw) {
+        const kickoff = typeof raw === 'string' ? JSON.parse(raw) : raw;
+        kickoff.internalMeetingRunId = handle.id;
+        kickoff.schedulingStatus = {
+          ...(kickoff.schedulingStatus || {}),
+          internal: 'finding_times',
+        };
+        await redis.set(`kickoff:${payload.kickoffId}`, JSON.stringify(kickoff));
+      }
+
+      return sendJson(res, 200, { ok: true, runId: handle.id });
+    }
+
+    // POST: Trigger external meeting scheduling
+    if (action === 'schedule-external') {
+      if (req.method !== 'POST') return sendJson(res, 405, { error: 'Method not allowed' });
+      const payload = JSON.parse(await readBody(req));
+      if (!payload.kickoffId) return sendJson(res, 400, { error: 'Missing kickoffId' });
+
+      const { tasks } = await import('@trigger.dev/sdk/v3');
+      const handle = await tasks.trigger('kickoff-schedule-external', {
+        kickoffId: payload.kickoffId,
+        customerName: payload.customerName,
+        aeName: payload.aeName,
+        aeEmail: payload.aeEmail,
+        saName: payload.saName,
+        saEmail: payload.saEmail,
+        slackInternalChannelId: payload.slackInternalChannelId,
+        timezone: payload.timezone,
+      });
+
+      const redis = await getRedis();
+      const raw = await redis.get(`kickoff:${payload.kickoffId}`);
+      if (raw) {
+        const kickoff = typeof raw === 'string' ? JSON.parse(raw) : raw;
+        kickoff.externalMeetingRunId = handle.id;
+        kickoff.schedulingStatus = {
+          ...(kickoff.schedulingStatus || {}),
+          external: 'finding_times',
+        };
+        await redis.set(`kickoff:${payload.kickoffId}`, JSON.stringify(kickoff));
+      }
+
+      return sendJson(res, 200, { ok: true, runId: handle.id });
+    }
+
+    // GET: Poll scheduling agent status
+    if (action === 'schedule-status') {
+      if (req.method !== 'GET') return sendJson(res, 405, { error: 'Method not allowed' });
+      const params = getParams(req);
+      const runId = params.get('runId');
+      const kickoffId = params.get('kickoffId');
+      const type = params.get('type'); // 'internal' or 'external'
+      if (!runId) return sendJson(res, 400, { error: 'Missing runId' });
+
+      const { runs } = await import('@trigger.dev/sdk/v3');
+      const run = await runs.retrieve(runId);
+
+      if (run.status === 'COMPLETED' && run.output && kickoffId) {
+        const redis = await getRedis();
+        const raw = await redis.get(`kickoff:${kickoffId}`);
+        if (raw) {
+          const kickoff = typeof raw === 'string' ? JSON.parse(raw) : raw;
+          const output = run.output as any;
+
+          if (type === 'internal') {
+            kickoff.internalMeetingTime = output.internalMeetingTime;
+            kickoff.schedulingStatus = {
+              ...(kickoff.schedulingStatus || {}),
+              internal: 'confirmed',
+            };
+          } else if (type === 'external') {
+            kickoff.externalMeetingTime = output.externalMeetingTime;
+            kickoff.externalBookingLink = output.externalBookingLink;
+            kickoff.schedulingStatus = {
+              ...(kickoff.schedulingStatus || {}),
+              external: output.externalMeetingTime ? 'confirmed' : 'waiting',
+            };
+          }
+
+          await redis.set(`kickoff:${kickoffId}`, JSON.stringify(kickoff));
+        }
+      }
+
+      // If agent posted times in Slack but hasn't confirmed yet, status is 'waiting'
+      if (run.status === 'EXECUTING' && kickoffId) {
+        const redis = await getRedis();
+        const raw = await redis.get(`kickoff:${kickoffId}`);
+        if (raw) {
+          const kickoff = typeof raw === 'string' ? JSON.parse(raw) : raw;
+          const currentStatus = type === 'internal'
+            ? kickoff.schedulingStatus?.internal
+            : kickoff.schedulingStatus?.external;
+          // Update to waiting if agent has been running for a bit (times posted)
+          if (currentStatus === 'finding_times') {
+            kickoff.schedulingStatus = {
+              ...(kickoff.schedulingStatus || {}),
+              [type as string]: 'waiting',
+            };
+            await redis.set(`kickoff:${kickoffId}`, JSON.stringify(kickoff));
+          }
+        }
+      }
+
+      return sendJson(res, 200, { status: run.status, output: run.output || null });
+    }
+
     return sendJson(res, 400, { error: `Unknown action: ${action}` });
   } catch (err: any) {
     return sendJson(res, 500, { error: err.message });
