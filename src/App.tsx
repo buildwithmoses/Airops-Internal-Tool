@@ -412,7 +412,7 @@ function BookingPage({ kickoffId }: { kickoffId: string }) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch(`/api/booking?action=slots&kickoffId=${kickoffId}`)
+    fetch(`/api/trigger-deck?action=booking-slots&kickoffId=${kickoffId}`)
       .then(r => r.json())
       .then(json => {
         setSlots(json.slots || []);
@@ -430,7 +430,7 @@ function BookingPage({ kickoffId }: { kickoffId: string }) {
     if (!selectedSlot || !clientName.trim() || !clientEmail.trim()) return;
     setSubmitting(true);
     try {
-      const res = await fetch('/api/booking?action=confirm', {
+      const res = await fetch('/api/trigger-deck?action=booking-confirm', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

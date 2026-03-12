@@ -303,6 +303,49 @@ export default async function handler(req: any, res: any) {
       return sendJson(res, 200, { status: run.status, output: run.output || null });
     }
 
+    // GET: Fetch available booking slots (public, no auth)
+    if (action === 'booking-slots') {
+      if (req.method !== 'GET') return sendJson(res, 405, { error: 'Method not allowed' });
+      const kickoffId = getParams(req).get('kickoffId');
+      if (!kickoffId) return sendJson(res, 400, { error: 'Missing kickoffId' });
+
+      const redis = await getRedis();
+      const raw = await redis.get(`kickoff-booking:${kickoffId}`);
+      if (!raw) return sendJson(res, 200, { slots: [], customerName: '', timezone: '' });
+
+      const data = typeof raw === 'string' ? JSON.parse(raw) : raw;
+      return sendJson(res, 200, {
+        slots: (data as any).slots || [],
+        customerName: (data as any).customerName || '',
+        timezone: (data as any).timezone || 'ET',
+      });
+    }
+
+    // POST: Client confirms a booking time (public, no auth)
+    if (action === 'booking-confirm') {
+      if (req.method !== 'POST') return sendJson(res, 405, { error: 'Method not allowed' });
+      const payload = JSON.parse(await readBody(req));
+
+      if (!payload.kickoffId || !payload.selectedTime || !payload.clientName || !payload.clientEmail) {
+        return sendJson(res, 400, { error: 'Missing required fields' });
+      }
+
+      const redis = await getRedis();
+      const existing = await redis.get(`kickoff-booking:${payload.kickoffId}:confirmed`);
+      if (existing) {
+        return sendJson(res, 409, { error: 'This time slot has already been booked' });
+      }
+
+      await redis.set(`kickoff-booking:${payload.kickoffId}:confirmed`, JSON.stringify({
+        selectedTime: payload.selectedTime,
+        clientName: payload.clientName,
+        clientEmail: payload.clientEmail,
+        confirmedAt: new Date().toISOString(),
+      }));
+
+      return sendJson(res, 200, { ok: true });
+    }
+
     return sendJson(res, 400, { error: `Unknown action: ${action}` });
   } catch (err: any) {
     return sendJson(res, 500, { error: err.message });
