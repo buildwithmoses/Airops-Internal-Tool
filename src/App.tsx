@@ -1663,7 +1663,7 @@ export default function App() {
   const BookingPanel = () => {
     const [customerName, setCustomerName] = useState('');
     const [aeName, setAeName] = useState('');
-    const [selectedUseCase, setSelectedUseCase] = useState('');
+    const [selectedUseCases, setSelectedUseCases] = useState<string[]>([]);
     const [notes, setNotes] = useState('');
     const [timezone, setTimezone] = useState('');
     const [arr, setArr] = useState('');
@@ -1685,11 +1685,6 @@ export default function App() {
       badge: <CapacityBadge count={getEffectiveLoad(sa)} />
     }));
 
-    const useCaseOptions = USE_CASE_TYPES.map(type => ({
-      label: type,
-      value: type,
-    }));
-
     const handleSubmit = () => {
       handleAddKickoff({
         customerName,
@@ -1699,14 +1694,14 @@ export default function App() {
         status: 'NOT STARTED',
         notes,
         eventDate: date1 ? new Date(date1 + 'T00:00:00').toISOString() : undefined,
-        useCaseType: selectedUseCase || undefined,
+        useCaseType: selectedUseCases.length > 0 ? selectedUseCases.join(', ') : undefined,
         timezone: timezone || undefined,
         arr: arr || undefined,
         isPoc,
       });
     };
 
-    const canSubmit = customerName && aeName && date1 && selectedUseCase && !week1IsFull;
+    const canSubmit = customerName && aeName && date1 && selectedUseCases.length > 0 && !week1IsFull;
 
     return (
       <motion.div
@@ -1727,13 +1722,50 @@ export default function App() {
           {/* Use Case Type */}
           <div className="space-y-2">
             <label className="mono-label text-[#676c79]">Use Case Type</label>
-            <CustomSelect
-              value={selectedUseCase}
-              onChange={setSelectedUseCase}
-              labelClassName="font-sans"
-              options={useCaseOptions}
-              placeholder="Select use case..."
-            />
+            <div className="space-y-2">
+              {USE_CASE_TYPES.map(type => {
+                const isSelected = selectedUseCases.includes(type);
+                const isOffsite = type === 'Offsite';
+                const hasOffsite = selectedUseCases.includes('Offsite');
+                const hasNonOffsite = selectedUseCases.some(t => t !== 'Offsite');
+                const isDisabled = (isOffsite && hasNonOffsite) || (!isOffsite && hasOffsite);
+                return (
+                  <label
+                    key={type}
+                    className={`flex items-center gap-3 p-3 border cursor-pointer transition-all ${
+                      isSelected ? 'border-[#008c44] bg-[#f0faf4]' : 'border-[#d4e8da] hover:border-[#008c44]'
+                    } ${isDisabled ? 'opacity-40 cursor-not-allowed' : ''}`}
+                  >
+                    <div
+                      className={`w-5 h-5 border flex items-center justify-center transition-colors ${
+                        isSelected ? 'bg-[#008c44] border-[#008c44]' : 'border-[#d4e8da]'
+                      }`}
+                    >
+                      {isSelected && <Check size={14} className="text-white" />}
+                    </div>
+                    <input
+                      type="checkbox"
+                      className="sr-only"
+                      checked={isSelected}
+                      disabled={isDisabled}
+                      onChange={() => {
+                        if (isDisabled) return;
+                        if (isSelected) {
+                          setSelectedUseCases(prev => prev.filter(t => t !== type));
+                        } else {
+                          if (isOffsite) {
+                            setSelectedUseCases(['Offsite']);
+                          } else {
+                            setSelectedUseCases(prev => [...prev.filter(t => t !== 'Offsite'), type]);
+                          }
+                        }
+                      }}
+                    />
+                    <span className="text-sm font-sans text-[#09090b]">{type}</span>
+                  </label>
+                );
+              })}
+            </div>
           </div>
 
           <div className="space-y-2">
