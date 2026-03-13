@@ -2066,7 +2066,7 @@ export default function App() {
     );
   };
 
-  const DetailPanel = () => {
+  const detailPanel = (() => {
     if (!selectedKickoff) return null;
 
     const completedTasks = selectedKickoff.tasks.filter(t => t).length;
@@ -2361,7 +2361,7 @@ export default function App() {
         </div>
       </motion.div>
     );
-  };
+  })();
 
   const handleNavClick = (newView: typeof view) => {
     setView(newView);
@@ -2583,7 +2583,7 @@ export default function App() {
               onClick={() => setSelectedKickoffId(null)}
               className="fixed inset-0 bg-black/20 backdrop-blur-[2px] z-40"
             />
-            <DetailPanel />
+            {detailPanel}
           </>
         )}
       </AnimatePresence>
