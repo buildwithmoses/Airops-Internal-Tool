@@ -2175,6 +2175,25 @@ export default function App() {
                       Use Agent
                     </button>
                   )}
+                  {task === 'Internal Sync with AE (add Lead)' && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        triggerScheduleInternal(selectedKickoff);
+                      }}
+                      disabled={!selectedKickoff.slackInternalChannelId || scheduleKickoffId === selectedKickoff.id}
+                      className="ml-auto flex items-center gap-1.5 px-3 py-1 bg-[#00ff64] text-[#000d05] text-xs font-bold hover:opacity-90 transition-opacity rounded-sm disabled:opacity-40 disabled:cursor-not-allowed"
+                      title={!selectedKickoff.slackInternalChannelId ? 'Create Slack channels first' : ''}
+                    >
+                      {scheduleKickoffId === selectedKickoff.id && selectedKickoff.schedulingStatus?.internal === 'finding_times' ? (
+                        <><Loader2 size={12} className="animate-spin" /> Scheduling...</>
+                      ) : selectedKickoff.schedulingStatus?.internal === 'confirmed' ? (
+                        <><CheckCircle2 size={12} /> Scheduled</>
+                      ) : (
+                        <><ArrowRight size={12} /> Use Agent</>
+                      )}
+                    </button>
+                  )}
                   {task === 'Slack Channel Created' && !selectedKickoff.slackInternalChannelId && (
                     <button
                       onClick={(e) => {
@@ -2292,46 +2311,6 @@ export default function App() {
           <div className="space-y-3">
             <label className="mono-label text-[#676c79]">MEETING SCHEDULING</label>
             <div className="space-y-3">
-              {/* Internal Sync */}
-              <div className="p-4 bg-[#F8FFFA] border border-[#d4e8da] space-y-2">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs font-bold text-[#676c79] uppercase tracking-wide">Internal Sync</p>
-                  {selectedKickoff.schedulingStatus?.internal === 'confirmed' && selectedKickoff.internalMeetingTime && (
-                    <span className="flex items-center gap-1 text-xs text-[#008c44] font-medium">
-                      <CheckCircle2 size={12} /> Confirmed
-                    </span>
-                  )}
-                </div>
-                {(!selectedKickoff.schedulingStatus || selectedKickoff.schedulingStatus.internal === 'not_started') && (
-                  <button
-                    onClick={() => triggerScheduleInternal(selectedKickoff)}
-                    disabled={!selectedKickoff.slackInternalChannelId}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-[#00ff64] text-[#000d05] text-xs font-bold hover:opacity-90 transition-opacity rounded-sm disabled:opacity-40 disabled:cursor-not-allowed"
-                    title={!selectedKickoff.slackInternalChannelId ? 'Create Slack channels first' : ''}
-                  >
-                    <Calendar size={12} />
-                    Schedule Internal Sync
-                  </button>
-                )}
-                {selectedKickoff.schedulingStatus?.internal === 'finding_times' && (
-                  <div className="flex items-center gap-2 text-sm text-[#676c79]">
-                    <Loader2 size={14} className="animate-spin" />
-                    Finding available times...
-                  </div>
-                )}
-                {selectedKickoff.schedulingStatus?.internal === 'waiting' && (
-                  <div className="flex items-center gap-2 text-sm text-[#676c79]">
-                    <Clock size={14} />
-                    Suggested times posted in #{selectedKickoff.slackInternalChannelId ? `c-internal-${slugify(selectedKickoff.customerName)}` : 'slack'}
-                  </div>
-                )}
-                {selectedKickoff.schedulingStatus?.internal === 'confirmed' && selectedKickoff.internalMeetingTime && (
-                  <p className="text-sm font-medium text-[#09090b]">
-                    {new Date(selectedKickoff.internalMeetingTime).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
-                  </p>
-                )}
-              </div>
-
               {/* External Kickoff */}
               <div className="p-4 bg-[#F8FFFA] border border-[#d4e8da] space-y-2">
                 <div className="flex items-center justify-between">
