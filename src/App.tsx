@@ -2176,10 +2176,7 @@ export default function App() {
                     </button>
                   )}
                   {task === 'Internal Sync with AE (add Lead)' && (
-                    <span
-                      className="ml-auto"
-                      title={!selectedKickoff.slackInternalChannelId ? 'Create Slack channels first' : ''}
-                    >
+                    <span className="ml-auto relative group/sync">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -2196,6 +2193,12 @@ export default function App() {
                           <><ArrowRight size={12} /> Use Agent</>
                         )}
                       </button>
+                      {!selectedKickoff.slackInternalChannelId && (
+                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-[#000d05] text-white text-xs font-medium rounded-md whitespace-nowrap opacity-0 group-hover/sync:opacity-100 transition-opacity pointer-events-none shadow-lg">
+                          Create Slack channels first
+                          <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-[#000d05]" />
+                        </div>
+                      )}
                     </span>
                   )}
                   {task === 'Slack Channel Created' && !selectedKickoff.slackInternalChannelId && (
