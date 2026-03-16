@@ -995,6 +995,24 @@ export default function App() {
     return () => clearInterval(interval);
   }, [scheduleExternalRunId, scheduleKickoffId, scheduleInternalRunId]);
 
+  // Find the closest matching Slack user name
+  const findSlackUserName = useCallback((name: string, users: SlackUser[]): string => {
+    if (!name || users.length === 0) return name;
+    // Exact match first
+    const exact = users.find(u => u.real_name === name);
+    if (exact) return exact.real_name;
+    // Case-insensitive match
+    const lower = name.toLowerCase();
+    const caseMatch = users.find(u => u.real_name.toLowerCase() === lower);
+    if (caseMatch) return caseMatch.real_name;
+    // Partial match (name contained in Slack name or vice versa)
+    const partial = users.find(u =>
+      u.real_name.toLowerCase().includes(lower) || lower.includes(u.real_name.toLowerCase())
+    );
+    if (partial) return partial.real_name;
+    return name;
+  }, []);
+
   // Fetch Slack users when modal opens
   useEffect(() => {
     if (!showAgentModal || slackUsers.length > 0) return;
@@ -1003,11 +1021,19 @@ export default function App() {
       .then(r => r.json())
       .then(json => {
         console.log('Slack users response:', json);
-        setSlackUsers(json.users || []);
+        const users: SlackUser[] = json.users || [];
+        setSlackUsers(users);
+        // Re-resolve form names against loaded Slack users
+        setAgentForm(f => ({
+          ...f,
+          aeName: findSlackUserName(f.aeName, users),
+          seName: findSlackUserName(f.seName, users),
+          csLead: findSlackUserName(f.csLead, users),
+        }));
       })
       .catch((err) => console.error('Slack users fetch failed:', err))
       .finally(() => setSlackUsersLoading(false));
-  }, [showAgentModal]);
+  }, [showAgentModal, findSlackUserName]);
 
   const openAgentModal = useCallback(() => {
     if (!selectedKickoff) return;
