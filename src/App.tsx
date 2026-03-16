@@ -1013,8 +1013,8 @@ export default function App() {
     if (!selectedKickoff) return;
     setAgentForm({
       aeName: selectedKickoff.aeName || '',
-      seName: '',
-      csLead: '',
+      seName: selectedKickoff.saName || '',
+      csLead: (selectedKickoff.saName && SA_POD_MAP[selectedKickoff.saName]?.lead) || '',
       kickoffDate: selectedKickoff.eventDate
         ? new Date(selectedKickoff.eventDate).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })
         : '',
@@ -2699,12 +2699,12 @@ export default function App() {
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="text-sm font-bold text-[#000d05]">CS Lead</label>
+                      <label className="text-sm font-bold text-[#000d05]">SA Lead</label>
                       <CustomSelect
                         value={agentForm.csLead}
                         onChange={(v) => setAgentForm(f => ({ ...f, csLead: v }))}
                         options={slackUsers.map(u => ({ label: u.real_name, value: u.real_name, image: u.avatar }))}
-                        placeholder="Select a CS Lead"
+                        placeholder="Select an SA Lead"
                         labelClassName="font-sans"
                         searchable
                         loading={slackUsersLoading}
