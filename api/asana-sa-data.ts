@@ -6,6 +6,7 @@ const PROJECT_GID = '1213223139200704'; // Solutions Architect Command Center
 const CUSTOMER_STATUS_GID = '1213193818615990';
 const USE_CASE_PHASE_GID = '1213301486281125';
 const CUSTOMER_FIELD_GID = '1213193818616005';
+const KICKOFF_DATE_GID = '1213264165642656';
 
 // Capacity constants
 const HOURS_M1 = 35;
@@ -17,14 +18,12 @@ interface AsanaTask {
   name: string;
   completed: boolean;
   assignee: { gid: string; name: string } | null;
-  start_on: string | null;
-  due_on: string | null;
-  created_at: string | null;
   custom_fields: Array<{
     gid: string;
     display_value: string | null;
     enum_value: { name: string } | null;
     text_value: string | null;
+    date_value: { date: string; date_time: string | null } | null;
   }>;
 }
 
@@ -33,9 +32,11 @@ interface AsanaSubtask {
   name: string;
   completed: boolean;
   assignee: { gid: string; name: string } | null;
-  start_on: string | null;
-  due_on: string | null;
-  created_at: string | null;
+  custom_fields: Array<{
+    gid: string;
+    display_value: string | null;
+    date_value: { date: string; date_time: string | null } | null;
+  }>;
 }
 
 function getMonth(startDate: string | null, now: Date): 1 | 2 | 3 | null {
@@ -59,7 +60,7 @@ function getHoursForMonth(month: 1 | 2 | 3): number {
 async function fetchAllTasks(): Promise<AsanaTask[]> {
   const allTasks: AsanaTask[] = [];
   let nextPage: string | null = null;
-  const fields = 'name,completed,assignee.name,start_on,due_on,created_at,custom_fields.display_value,custom_fields.enum_value.name,custom_fields.text_value';
+  const fields = 'name,completed,assignee.name,custom_fields.display_value,custom_fields.enum_value.name,custom_fields.text_value,custom_fields.date_value';
 
   do {
     const url = nextPage
@@ -83,7 +84,7 @@ async function fetchAllTasks(): Promise<AsanaTask[]> {
 }
 
 async function fetchSubtasks(taskGid: string): Promise<AsanaSubtask[]> {
-  const fields = 'name,completed,assignee.name,start_on,due_on,created_at';
+  const fields = 'name,completed,assignee.name,custom_fields.display_value,custom_fields.date_value';
   const url = `https://app.asana.com/api/1.0/tasks/${taskGid}/subtasks?opt_fields=${fields}&limit=100`;
 
   const res = await fetch(url, {
@@ -167,9 +168,15 @@ export default async function handler(req: any, res: any) {
         for (const sub of subtasks) {
           if (sub.completed) continue;
 
-          // Use subtask start_on, fallback to task start_on, then created_at
-          const startDate = sub.start_on || task.start_on || (sub.created_at ? sub.created_at.split('T')[0] : null);
-          const month = getMonth(startDate, now);
+          // Get Kickoff Date from subtask custom field
+          let kickoffDate: string | null = null;
+          for (const cf of sub.custom_fields || []) {
+            if (cf.gid === KICKOFF_DATE_GID && cf.date_value?.date) {
+              kickoffDate = cf.date_value.date;
+            }
+          }
+
+          const month = getMonth(kickoffDate, now);
 
           if (month) {
             saMap[saName].useCases.push({
@@ -181,9 +188,14 @@ export default async function handler(req: any, res: any) {
           }
         }
       } else {
-        // No subtasks — treat the task itself as a single use case
-        const startDate = task.start_on || (task.created_at ? task.created_at.split('T')[0] : null);
-        const month = getMonth(startDate, now);
+        // No subtasks — check Kickoff Date on the task itself
+        let kickoffDate: string | null = null;
+        for (const cf of task.custom_fields || []) {
+          if (cf.gid === KICKOFF_DATE_GID) {
+            kickoffDate = cf.display_value ? cf.display_value.split('T')[0] : null;
+          }
+        }
+        const month = getMonth(kickoffDate, now);
 
         if (month) {
           saMap[saName].useCases.push({
