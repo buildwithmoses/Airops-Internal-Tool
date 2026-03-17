@@ -178,12 +178,13 @@ export default async function handler(req: any, res: any) {
 
           const month = getMonth(kickoffDate, now);
 
-          if (month) {
+          // Include use case even if no date (month will be null)
+          if (month || !kickoffDate) {
             saMap[saName].useCases.push({
               customer,
               name: sub.name,
               month,
-              hours: getHoursForMonth(month),
+              hours: month ? getHoursForMonth(month) : 0,
             });
           }
         }
@@ -197,12 +198,13 @@ export default async function handler(req: any, res: any) {
         }
         const month = getMonth(kickoffDate, now);
 
-        if (month) {
+        // Include use case even if no date (month will be null)
+        if (month || !kickoffDate) {
           saMap[saName].useCases.push({
             customer,
             name: task.name,
             month,
-            hours: getHoursForMonth(month),
+            hours: month ? getHoursForMonth(month) : 0,
           });
         }
       }
@@ -213,7 +215,7 @@ export default async function handler(req: any, res: any) {
         const m1Count = data.useCases.filter(uc => uc.month === 1).length;
         const m2Count = data.useCases.filter(uc => uc.month === 2).length;
         const m3Count = data.useCases.filter(uc => uc.month === 3).length;
-        const totalHours = data.useCases.reduce((sum, uc) => sum + uc.hours, 0);
+        const totalHours = data.useCases.filter(uc => uc.month !== null).reduce((sum, uc) => sum + uc.hours, 0);
 
         return {
           name,

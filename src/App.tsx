@@ -100,7 +100,7 @@ interface SlackUser {
 interface UseCase {
   customer: string;
   name: string;
-  month: 1 | 2 | 3;
+  month: 1 | 2 | 3 | null;
   hours: number;
 }
 
@@ -1788,11 +1788,17 @@ export default function App() {
                           <td className="py-2 font-sans">{uc.customer}</td>
                           <td className="py-2 font-sans">{uc.name}</td>
                           <td className="py-2">
-                            <span className={`mono-label text-[10px] px-1.5 py-0.5 ${
-                              uc.month === 1 ? 'bg-[#e6f7ee]' : uc.month === 2 ? 'bg-[#ccf0dc]' : 'bg-[#b3e8cc]'
-                            } text-[#008c44]`}>
-                              M{uc.month}
-                            </span>
+                            {uc.month ? (
+                              <span className={`mono-label text-[10px] px-1.5 py-0.5 ${
+                                uc.month === 1 ? 'bg-[#e6f7ee]' : uc.month === 2 ? 'bg-[#ccf0dc]' : 'bg-[#b3e8cc]'
+                              } text-[#008c44]`}>
+                                M{uc.month}
+                              </span>
+                            ) : (
+                              <span className="mono-label text-[10px] px-1.5 py-0.5 bg-[#fde8e8] text-[#cc0000]">
+                                NO DATE
+                              </span>
+                            )}
                           </td>
                           <td className="py-2 text-right font-mono">{uc.hours}h</td>
                         </tr>
