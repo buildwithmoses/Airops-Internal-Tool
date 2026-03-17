@@ -7,30 +7,19 @@ const CUSTOMER_STATUS_GID = '1213193818615990';
 const USE_CASE_PHASE_GID = '1213301486281125';
 const CUSTOMER_FIELD_GID = '1213193818616005';
 
-// Classify into pipeline stages
-function classifyStage(customerStatus: string | null, useCasePhase: string | null): 'preActivation' | 'early' | 'mid' | 'late' {
-  const phase = useCasePhase?.toLowerCase() || '';
-  const status = customerStatus?.toLowerCase() || '';
-
-  // Pre-activation is its own category (separate from early/activation)
-  if (phase.includes('pre-activation') || status.includes('pre-activation')) return 'preActivation';
-
-  if (phase.includes('intake')) return 'early';
-  if (phase.includes('calibration') || phase.includes('go-live')) return 'mid';
-  if (phase.includes('maintenance')) return 'late';
-
-  if (status.includes('activation')) return 'early';
-  if (status.includes('live but syncs')) return 'mid';
-  if (status.includes('async') || status.includes('churned')) return 'late';
-
-  return 'early';
-}
+// Capacity constants
+const HOURS_M1 = 35;
+const HOURS_M2 = 25;
+const HOURS_M3 = 10;
 
 interface AsanaTask {
   gid: string;
   name: string;
   completed: boolean;
   assignee: { gid: string; name: string } | null;
+  start_on: string | null;
+  due_on: string | null;
+  created_at: string | null;
   custom_fields: Array<{
     gid: string;
     display_value: string | null;
@@ -39,10 +28,38 @@ interface AsanaTask {
   }>;
 }
 
+interface AsanaSubtask {
+  gid: string;
+  name: string;
+  completed: boolean;
+  assignee: { gid: string; name: string } | null;
+  start_on: string | null;
+  due_on: string | null;
+  created_at: string | null;
+}
+
+function getMonth(startDate: string | null, now: Date): 1 | 2 | 3 | null {
+  if (!startDate) return null;
+  const start = new Date(startDate + 'T00:00:00Z');
+  const diffMs = now.getTime() - start.getTime();
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  if (diffDays < 0) return null; // hasn't started yet
+  if (diffDays <= 30) return 1;
+  if (diffDays <= 60) return 2;
+  if (diffDays <= 90) return 3;
+  return null; // past 90 days — excluded
+}
+
+function getHoursForMonth(month: 1 | 2 | 3): number {
+  if (month === 1) return HOURS_M1;
+  if (month === 2) return HOURS_M2;
+  return HOURS_M3;
+}
+
 async function fetchAllTasks(): Promise<AsanaTask[]> {
   const allTasks: AsanaTask[] = [];
   let nextPage: string | null = null;
-  const fields = 'name,completed,assignee.name,custom_fields.display_value,custom_fields.enum_value.name,custom_fields.text_value';
+  const fields = 'name,completed,assignee.name,start_on,due_on,created_at,custom_fields.display_value,custom_fields.enum_value.name,custom_fields.text_value';
 
   do {
     const url = nextPage
@@ -65,6 +82,37 @@ async function fetchAllTasks(): Promise<AsanaTask[]> {
   return allTasks;
 }
 
+async function fetchSubtasks(taskGid: string): Promise<AsanaSubtask[]> {
+  const fields = 'name,completed,assignee.name,start_on,due_on,created_at';
+  const url = `https://app.asana.com/api/1.0/tasks/${taskGid}/subtasks?opt_fields=${fields}&limit=100`;
+
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${ASANA_PAT}` },
+  });
+
+  if (!res.ok) return [];
+
+  const data = await res.json();
+  return data.data || [];
+}
+
+// Fetch subtasks in parallel with concurrency limit
+async function fetchAllSubtasks(taskGids: string[], concurrency = 8): Promise<Record<string, AsanaSubtask[]>> {
+  const results: Record<string, AsanaSubtask[]> = {};
+  const queue = [...taskGids];
+
+  async function worker() {
+    while (queue.length > 0) {
+      const gid = queue.shift()!;
+      results[gid] = await fetchSubtasks(gid);
+    }
+  }
+
+  const workers = Array.from({ length: Math.min(concurrency, queue.length) }, () => worker());
+  await Promise.all(workers);
+  return results;
+}
+
 function sendJson(res: any, status: number, body: any) {
   res.statusCode = status;
   res.setHeader('Content-Type', 'application/json');
@@ -78,66 +126,97 @@ export default async function handler(req: any, res: any) {
 
   try {
     const tasks = await fetchAllTasks();
+    const now = new Date();
 
-    // Group by task ASSIGNEE (the SA assigned to each task/client)
-    const saMap: Record<string, { activeProjects: number; preActivation: number; earlyStage: number; midStage: number; lateStage: number; offsite: number; clients: string[] }> = {};
+    // Filter to active (incomplete) tasks with assignees
+    const activeTasks = tasks.filter(t => !t.completed && t.assignee?.name);
 
-    for (const task of tasks) {
-      if (task.completed) continue;
-      if (!task.assignee?.name) continue;
+    // Fetch subtasks for all active tasks
+    const taskGids = activeTasks.map(t => t.gid);
+    const subtasksMap = await fetchAllSubtasks(taskGids);
 
-      const saName = task.assignee.name;
+    // Build SA capacity data
+    const saMap: Record<string, {
+      useCases: Array<{ customer: string; name: string; month: 1 | 2 | 3; hours: number }>;
+      clients: string[];
+    }> = {};
 
-      let customerStatus: string | null = null;
-      let useCasePhase: string | null = null;
+    for (const task of activeTasks) {
+      const saName = task.assignee!.name;
+
+      // Get customer name from custom field or task name
       let customerName: string | null = null;
-
       for (const cf of task.custom_fields || []) {
-        if (cf.gid === CUSTOMER_STATUS_GID) {
-          customerStatus = cf.enum_value?.name || cf.display_value || null;
-        } else if (cf.gid === USE_CASE_PHASE_GID) {
-          useCasePhase = cf.enum_value?.name || cf.display_value || null;
-        } else if (cf.gid === CUSTOMER_FIELD_GID) {
+        if (cf.gid === CUSTOMER_FIELD_GID) {
           customerName = cf.text_value || cf.display_value || null;
         }
       }
+      const customer = customerName || task.name;
 
       if (!saMap[saName]) {
-        saMap[saName] = { activeProjects: 0, preActivation: 0, earlyStage: 0, midStage: 0, lateStage: 0, offsite: 0, clients: [] };
+        saMap[saName] = { useCases: [], clients: [] };
+      }
+      if (!saMap[saName].clients.includes(customer)) {
+        saMap[saName].clients.push(customer);
       }
 
-      // Detect offsite projects by task name
-      const isOffsite = task.name.toLowerCase().includes('offsite');
+      // Process subtasks (use cases)
+      const subtasks = subtasksMap[task.gid] || [];
 
-      saMap[saName].activeProjects++;
-      if (isOffsite) saMap[saName].offsite++;
+      if (subtasks.length > 0) {
+        for (const sub of subtasks) {
+          if (sub.completed) continue;
 
-      const stage = classifyStage(customerStatus, useCasePhase);
-      if (stage === 'preActivation') saMap[saName].preActivation++;
-      else if (stage === 'early') saMap[saName].earlyStage++;
-      else if (stage === 'mid') saMap[saName].midStage++;
-      else saMap[saName].lateStage++;
+          // Use subtask start_on, fallback to task start_on, then created_at
+          const startDate = sub.start_on || task.start_on || (sub.created_at ? sub.created_at.split('T')[0] : null);
+          const month = getMonth(startDate, now);
 
-      const clientLabel = customerName || task.name;
-      saMap[saName].clients.push(clientLabel);
+          if (month) {
+            saMap[saName].useCases.push({
+              customer,
+              name: sub.name,
+              month,
+              hours: getHoursForMonth(month),
+            });
+          }
+        }
+      } else {
+        // No subtasks — treat the task itself as a single use case
+        const startDate = task.start_on || (task.created_at ? task.created_at.split('T')[0] : null);
+        const month = getMonth(startDate, now);
+
+        if (month) {
+          saMap[saName].useCases.push({
+            customer,
+            name: task.name,
+            month,
+            hours: getHoursForMonth(month),
+          });
+        }
+      }
     }
 
     const saData = Object.entries(saMap)
-      .map(([name, data]) => ({
-        name,
-        activeProjects: data.activeProjects,
-        preActivation: data.preActivation,
-        earlyStage: data.earlyStage,
-        midStage: data.midStage,
-        lateStage: data.lateStage,
-        offsite: data.offsite,
-        notes: '',
-        clients: data.clients,
-      }))
-      .sort((a, b) => b.activeProjects - a.activeProjects);
+      .map(([name, data]) => {
+        const m1Count = data.useCases.filter(uc => uc.month === 1).length;
+        const m2Count = data.useCases.filter(uc => uc.month === 2).length;
+        const m3Count = data.useCases.filter(uc => uc.month === 3).length;
+        const totalHours = data.useCases.reduce((sum, uc) => sum + uc.hours, 0);
+
+        return {
+          name,
+          useCases: data.useCases,
+          totalHours,
+          monthBreakdown: { m1: m1Count, m2: m2Count, m3: m3Count },
+          capacity: 128,
+          utilizationPct: Math.round((totalHours / 128) * 100),
+          clients: data.clients,
+        };
+      })
+      .sort((a, b) => b.utilizationPct - a.utilizationPct);
 
     res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=600');
-    return sendJson(res, 200, { data: saData, totalTasks: tasks.length });
+    return sendJson(res, 200, { data: saData });
   } catch (err: any) {
     return sendJson(res, 500, { error: err.message });
   }

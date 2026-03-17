@@ -25,7 +25,8 @@ import {
   FolderOpen,
   Trash2,
   Copy,
-  Hash
+  Hash,
+  ChevronDown
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -96,14 +97,20 @@ interface SlackUser {
   avatar: string;
 }
 
+interface UseCase {
+  customer: string;
+  name: string;
+  month: 1 | 2 | 3;
+  hours: number;
+}
+
 interface SA {
   name: string;
-  activeProjects: number;
-  preActivation: number;
-  earlyStage: number;
-  midStage: number;
-  lateStage: number;
-  offsite: number;
+  useCases: UseCase[];
+  totalHours: number;
+  monthBreakdown: { m1: number; m2: number; m3: number };
+  capacity: number;
+  utilizationPct: number;
   notes: string;
 }
 
@@ -172,25 +179,14 @@ const STANDARD_TASKS = [
   "Add Hubspot ID to Admin"
 ];
 
+const emptySA = (name: string): SA => ({ name, useCases: [], totalHours: 0, monthBreakdown: { m1: 0, m2: 0, m3: 0 }, capacity: 128, utilizationPct: 0, notes: '' });
+
 const INITIAL_SAS: SA[] = [
-  { name: "Aaron Lit", activeProjects: 0, preActivation: 0, earlyStage: 0, midStage: 0, lateStage: 0, offsite: 0, notes: ""},
-  { name: "AJ Diaz", activeProjects: 0, preActivation: 0, earlyStage: 0, midStage: 0, lateStage: 0, offsite: 0, notes: ""},
-  { name: "Andreea Volzer", activeProjects: 0, preActivation: 0, earlyStage: 0, midStage: 0, lateStage: 0, offsite: 0, notes: ""},
-  { name: "Anton O'Malley", activeProjects: 0, preActivation: 0, earlyStage: 0, midStage: 0, lateStage: 0, offsite: 0, notes: ""},
-  { name: "Arnett Shen", activeProjects: 0, preActivation: 0, earlyStage: 0, midStage: 0, lateStage: 0, offsite: 0, notes: ""},
-  { name: "Diana Shiling", activeProjects: 0, preActivation: 0, earlyStage: 0, midStage: 0, lateStage: 0, offsite: 0, notes: ""},
-  { name: "Elmi Abdullahi", activeProjects: 0, preActivation: 0, earlyStage: 0, midStage: 0, lateStage: 0, offsite: 0, notes: ""},
-  { name: "Henry Moses Jr", activeProjects: 0, preActivation: 0, earlyStage: 0, midStage: 0, lateStage: 0, offsite: 0, notes: ""},
-  { name: "Henry Young", activeProjects: 0, preActivation: 0, earlyStage: 0, midStage: 0, lateStage: 0, offsite: 0, notes: ""},
-  { name: "Jeremy Kao", activeProjects: 0, preActivation: 0, earlyStage: 0, midStage: 0, lateStage: 0, offsite: 0, notes: ""},
-  { name: "Joel Fazecas", activeProjects: 0, preActivation: 0, earlyStage: 0, midStage: 0, lateStage: 0, offsite: 0, notes: ""},
-  { name: "John Sellers", activeProjects: 0, preActivation: 0, earlyStage: 0, midStage: 0, lateStage: 0, offsite: 0, notes: ""},
-  { name: "Melanie Dell'Olio", activeProjects: 0, preActivation: 0, earlyStage: 0, midStage: 0, lateStage: 0, offsite: 0, notes: ""},
-  { name: "Palmer Jones", activeProjects: 0, preActivation: 0, earlyStage: 0, midStage: 0, lateStage: 0, offsite: 0, notes: ""},
-  { name: "Richard Li", activeProjects: 0, preActivation: 0, earlyStage: 0, midStage: 0, lateStage: 0, offsite: 0, notes: ""},
-  { name: "Shahbaz Mahmood", activeProjects: 0, preActivation: 0, earlyStage: 0, midStage: 0, lateStage: 0, offsite: 0, notes: ""},
-  { name: "William Reed", activeProjects: 0, preActivation: 0, earlyStage: 0, midStage: 0, lateStage: 0, offsite: 0, notes: ""},
-  { name: "Zoe Febrero", activeProjects: 0, preActivation: 0, earlyStage: 0, midStage: 0, lateStage: 0, offsite: 0, notes: ""},
+  emptySA("Aaron Lit"), emptySA("AJ Diaz"), emptySA("Andreea Volzer"), emptySA("Anton O'Malley"),
+  emptySA("Arnett Shen"), emptySA("Diana Shiling"), emptySA("Elmi Abdullahi"), emptySA("Henry Moses Jr"),
+  emptySA("Henry Young"), emptySA("Jeremy Kao"), emptySA("Joel Fazecas"), emptySA("John Sellers"),
+  emptySA("Melanie Dell'Olio"), emptySA("Palmer Jones"), emptySA("Richard Li"), emptySA("Shahbaz Mahmood"),
+  emptySA("William Reed"), emptySA("Zoe Febrero"),
 ];
 
 
@@ -274,16 +270,16 @@ const StatusBadge = ({ status }: { status: Status }) => {
   );
 };
 
-const CapacityBadge = ({ count }: { count: number }) => {
-  const style = count < 3
+const CapacityBadge = ({ pct }: { pct: number }) => {
+  const style = pct <= 80
     ? 'bg-[#CCFFE0] text-[#008c44]'
-    : count <= 4
+    : pct <= 100
       ? 'bg-[#EEFF8C] text-[#000d05]'
       : 'bg-[#FFE5E5] text-[#991b1b]';
 
   return (
     <span className={`mono-label px-2 py-0.5 inline-block ${style}`}>
-      {count} active
+      {pct}%
     </span>
   );
 };
@@ -754,14 +750,13 @@ export default function App() {
       .then(res => res.json())
       .then(json => {
         if (json.data && json.data.length > 0) {
-          const saData = json.data.map((sa: any) => ({
+          const saData: SA[] = json.data.map((sa: any) => ({
             name: sa.name,
-            activeProjects: sa.activeProjects,
-            preActivation: sa.preActivation || 0,
-            earlyStage: sa.earlyStage,
-            midStage: sa.midStage,
-            lateStage: sa.lateStage,
-            offsite: sa.offsite || 0,
+            useCases: sa.useCases || [],
+            totalHours: sa.totalHours || 0,
+            monthBreakdown: sa.monthBreakdown || { m1: 0, m2: 0, m3: 0 },
+            capacity: sa.capacity || 128,
+            utilizationPct: sa.utilizationPct || 0,
             notes: '',
           }));
           // Load persisted SA notes and merge
@@ -1082,21 +1077,7 @@ export default function App() {
     }
   }, [selectedKickoff, agentForm]);
 
-  // Capacity Score Heuristic — offsite projects count as ~1/3 of a regular project
-  const getEffectiveLoad = (sa: SA) => {
-    const raw = sa.preActivation + sa.earlyStage;
-    const offsite = sa.offsite || 0;
-    const offsiteWeight = Math.ceil(offsite / 3);
-    return (raw - offsite) + offsiteWeight;
-  };
-
-  const getActiveCount = (saName: string) => {
-    const sa = sas.find(s => s.name === saName);
-    if (!sa) return 0;
-    return getEffectiveLoad(sa);
-  };
-
-  const sasSortedByCapacity = [...sas].sort((a, b) => getEffectiveLoad(a) - getEffectiveLoad(b));
+  const sasSortedByCapacity = [...sas].sort((a, b) => a.totalHours - b.totalHours);
 
   // Debounced SA notes save
   const saNotesTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
@@ -1629,65 +1610,208 @@ export default function App() {
     </div>
   );
 
+  const [capacityPodFilter, setCapacityPodFilter] = useState<string>('all');
+  const [expandedSA, setExpandedSA] = useState<string | null>(null);
+
+  const pods = [...new Set(Object.values(SA_POD_MAP).map(v => v.pod))];
+
+  const capacityFilteredSAs = capacityPodFilter === 'all'
+    ? sas
+    : sas.filter(sa => SA_POD_MAP[sa.name]?.pod === capacityPodFilter);
+
+  const capacitySorted = [...capacityFilteredSAs].sort((a, b) => b.utilizationPct - a.utilizationPct);
+
+  const totalM1 = capacityFilteredSAs.reduce((s, sa) => s + sa.monthBreakdown.m1, 0);
+  const totalM2 = capacityFilteredSAs.reduce((s, sa) => s + sa.monthBreakdown.m2, 0);
+  const totalM3 = capacityFilteredSAs.reduce((s, sa) => s + sa.monthBreakdown.m3, 0);
+  const totalActHrs = capacityFilteredSAs.reduce((s, sa) => s + sa.totalHours, 0);
+  const totalCapacity = capacityFilteredSAs.length * 128;
+  const totalUCs = totalM1 + totalM2 + totalM3;
+
+  const currentMonth = new Date().toLocaleString('en-US', { month: 'long' });
+  const currentYear = new Date().getFullYear();
+
   const SACapacityView = () => (
     <div className="space-y-6 animate-in fade-in duration-500">
+      {/* Header */}
       <div>
-        <h1 className="text-2xl md:text-4xl mb-1">SA Capacity</h1>
-        <p className="text-[#676c79] text-sm">Real-time visibility into Solutions Architect workload.</p>
+        <span className="mono-label px-2 py-0.5 bg-[#000d05] text-white text-[10px] inline-block mb-3">CX CAPACITY</span>
+        <h1 className="text-2xl md:text-4xl mb-1">Activation capacity by SA</h1>
+        <p className="text-[#676c79] text-sm">
+          Use-case level from Asana — {totalUCs} activations in months 1–3 across {capacityFilteredSAs.length} SAs — {currentMonth} {currentYear}
+        </p>
       </div>
 
-      <div className="border border-[#d4e8da] overflow-x-auto">
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="bg-[#F8FFFA] border-bottom border-[#d4e8da]">
-              <th className="p-4 mono-label text-[#676c79] font-medium">SA Name</th>
-              <th className="p-4 mono-label text-[#676c79] font-medium">Active Projects</th>
-              <th className="p-4 mono-label text-[#676c79] font-medium">Stage Breakdown</th>
-              <th className="p-4 mono-label text-[#676c79] font-medium">Upcoming Kickoffs</th>
-              <th className="p-4 mono-label text-[#676c79] font-medium">Capacity Score</th>
-              <th className="p-4 mono-label text-[#676c79] font-medium">Notes</th>
-            </tr>
-          </thead>
-          <tbody>
-            {sasSortedByCapacity.map(sa => {
-              const upcoming = kickoffs.filter(k => k.saName === sa.name && k.status !== 'COMPLETE').length;
-              const activeCount = getActiveCount(sa.name);
+      {/* Pod Filter Tabs */}
+      <div className="flex gap-0 border border-[#d4e8da] w-fit">
+        <button
+          onClick={() => setCapacityPodFilter('all')}
+          className={`px-5 py-2.5 mono-label text-xs transition-colors ${capacityPodFilter === 'all' ? 'bg-[#008c44] text-white' : 'bg-white text-[#000d05] hover:bg-[#f0faf4]'}`}
+        >
+          ALL PODS
+        </button>
+        {pods.map(pod => {
+          const shortName = pod.replace("'s Pod", '').replace('Pod ', '').toUpperCase() + ' POD';
+          return (
+            <button
+              key={pod}
+              onClick={() => setCapacityPodFilter(pod)}
+              className={`px-5 py-2.5 mono-label text-xs border-l border-[#d4e8da] transition-colors ${capacityPodFilter === pod ? 'bg-[#008c44] text-white' : 'bg-white text-[#000d05] hover:bg-[#f0faf4]'}`}
+            >
+              {shortName}
+            </button>
+          );
+        })}
+      </div>
 
-              return (
-                <tr key={sa.name} className="border-t border-[#ecedef] hover:bg-[#f0faf4] transition-colors">
-                  <td className="p-4 font-sans font-bold text-sm">{sa.name}</td>
-                  <td className="p-4 text-sm font-mono">{sa.activeProjects}</td>
-                  <td className="p-4 text-xs text-[#676c79]">
-                    <div className="flex items-center gap-1">
-                      <span className="text-[#008c44] font-bold">{sa.preActivation}</span> pre /
-                      <span className="text-[#008c44] font-bold">{sa.earlyStage}</span> early /
-                      <span className="text-[#008c44] font-bold">{sa.midStage}</span> mid /
-                      <span className="text-[#008c44] font-bold">{sa.lateStage}</span> late
-                      {sa.offsite > 0 && <> / <span className="text-[#7C3AED] font-bold">{sa.offsite}</span> offsite</>}
-                    </div>
-                  </td>
-                  <td className="p-4 text-sm font-mono">{upcoming}</td>
-                  <td className="p-4"><CapacityBadge count={activeCount} /></td>
-                  <td className="p-4">
-                    <input 
-                      type="text"
-                      value={sa.notes}
-                      onChange={(e) => {
-                        const newSas = [...sas];
-                        const idx = newSas.findIndex(s => s.name === sa.name);
-                        newSas[idx].notes = e.target.value;
-                        setSas(newSas);
-                        saveSaNote(sa.name, e.target.value);
-                      }}
-                      placeholder="Add note..."
-                      className="w-full bg-transparent border-none text-sm text-[#676c79] focus:ring-0 outline-none italic"
-                    />
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+      {/* Summary Cards */}
+      <div className="grid grid-cols-4 gap-0 border border-[#d4e8da]">
+        <div className="p-5 border-r border-[#d4e8da]">
+          <p className="mono-label text-[#676c79] text-[10px] mb-2">MONTH 1 UCS</p>
+          <p className="text-3xl font-sans text-[#008c44] font-bold">{totalM1}</p>
+          <p className="text-xs text-[#676c79] mt-1">{totalM1 * 35}h @ 35h each</p>
+        </div>
+        <div className="p-5 border-r border-[#d4e8da]">
+          <p className="mono-label text-[#676c79] text-[10px] mb-2">MONTH 2 UCS</p>
+          <p className="text-3xl font-sans text-[#008c44] font-bold">{totalM2}</p>
+          <p className="text-xs text-[#676c79] mt-1">{totalM2 * 25}h @ 25h each</p>
+        </div>
+        <div className="p-5 border-r border-[#d4e8da]">
+          <p className="mono-label text-[#676c79] text-[10px] mb-2">MONTH 3 UCS</p>
+          <p className="text-3xl font-sans text-[#008c44] font-bold">{totalM3}</p>
+          <p className="text-xs text-[#676c79] mt-1">{totalM3 * 10}h @ 10h each</p>
+        </div>
+        <div className="p-5">
+          <p className="mono-label text-[#676c79] text-[10px] mb-2">TOTAL ACT. HRS</p>
+          <p className="text-3xl font-sans font-bold">{totalActHrs}</p>
+          <p className="text-xs text-[#676c79] mt-1">of {totalCapacity} capacity</p>
+        </div>
+      </div>
+
+      {/* Legend */}
+      <div className="flex items-center gap-6 text-xs text-[#676c79] mono-label">
+        <div className="flex items-center gap-1.5"><span className="w-3 h-3 bg-[#66d99a] inline-block" /> MONTH 1 (35H)</div>
+        <div className="flex items-center gap-1.5"><span className="w-3 h-3 bg-[#00b85c] inline-block" /> MONTH 2 (25H)</div>
+        <div className="flex items-center gap-1.5"><span className="w-3 h-3 bg-[#008c44] inline-block" /> MONTH 3 (10H)</div>
+        <div className="flex items-center gap-1.5"><span className="w-6 border-t-2 border-[#676c79] inline-block" /> 128H CAPACITY</div>
+      </div>
+
+      {/* SA Rows */}
+      <div className="space-y-0 border border-[#d4e8da]">
+        {capacitySorted.map(sa => {
+          const pod = SA_POD_MAP[sa.name]?.pod;
+          const podShort = pod ? pod.replace("'s Pod", '').replace('Pod ', '').toUpperCase() : '';
+          const ucCount = sa.useCases.length;
+          const isExpanded = expandedSA === sa.name;
+
+          // Bar widths as percentage of max (use 200h as max bar width reference, or capacity * 1.2)
+          const maxBarHours = Math.max(totalCapacity / capacityFilteredSAs.length * 1.2, sa.totalHours * 1.05, 160);
+          const m1Hours = sa.monthBreakdown.m1 * 35;
+          const m2Hours = sa.monthBreakdown.m2 * 25;
+          const m3Hours = sa.monthBreakdown.m3 * 10;
+          const m1Pct = (m1Hours / maxBarHours) * 100;
+          const m2Pct = (m2Hours / maxBarHours) * 100;
+          const m3Pct = (m3Hours / maxBarHours) * 100;
+          const capacityLinePct = (128 / maxBarHours) * 100;
+
+          return (
+            <div key={sa.name} className="border-b border-[#ecedef] last:border-b-0">
+              <div className="px-5 pt-4 pb-2">
+                {/* Top row: name, UC count, pod, month pills, hours, pct */}
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-3">
+                    <span className="font-sans font-bold text-sm">{sa.name}</span>
+                    <span className="text-xs text-[#676c79]">{ucCount} USE CASES</span>
+                    {podShort && (
+                      <span className="mono-label text-[10px] px-2 py-0.5 border border-[#008c44] text-[#008c44]">
+                        {podShort}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {sa.monthBreakdown.m1 > 0 && (
+                      <span className="mono-label text-[10px] px-2 py-0.5 bg-[#e6f7ee] text-[#008c44]">
+                        {sa.monthBreakdown.m1} M1
+                      </span>
+                    )}
+                    {sa.monthBreakdown.m2 > 0 && (
+                      <span className="mono-label text-[10px] px-2 py-0.5 bg-[#ccf0dc] text-[#008c44]">
+                        {sa.monthBreakdown.m2} M2
+                      </span>
+                    )}
+                    {sa.monthBreakdown.m3 > 0 && (
+                      <span className="mono-label text-[10px] px-2 py-0.5 bg-[#b3e8cc] text-[#008c44]">
+                        {sa.monthBreakdown.m3} M3
+                      </span>
+                    )}
+                    <span className="text-xs font-mono text-[#676c79]">{sa.totalHours}H/128H</span>
+                    <CapacityBadge pct={sa.utilizationPct} />
+                    <button
+                      onClick={() => setExpandedSA(isExpanded ? null : sa.name)}
+                      className="text-[#676c79] hover:text-[#000d05] transition-colors ml-1"
+                    >
+                      <ChevronDown size={14} className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Capacity Bar */}
+                <div className="relative h-5 bg-[#f0faf4] w-full mb-2">
+                  <div className="absolute inset-0 flex">
+                    {m1Pct > 0 && <div className="h-full bg-[#66d99a]" style={{ width: `${m1Pct}%` }} />}
+                    {m2Pct > 0 && <div className="h-full bg-[#00b85c]" style={{ width: `${m2Pct}%` }} />}
+                    {m3Pct > 0 && <div className="h-full bg-[#008c44]" style={{ width: `${m3Pct}%` }} />}
+                  </div>
+                  {/* 128h capacity line */}
+                  <div
+                    className="absolute top-0 bottom-0 border-r-2 border-[#000d05]"
+                    style={{ left: `${Math.min(capacityLinePct, 100)}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* Expanded: Use case details */}
+              {isExpanded && sa.useCases.length > 0 && (
+                <div className="px-5 pb-4 bg-[#f8faf9]">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="text-[#676c79] mono-label">
+                        <th className="text-left py-2 font-medium">Customer</th>
+                        <th className="text-left py-2 font-medium">Use Case</th>
+                        <th className="text-left py-2 font-medium">Month</th>
+                        <th className="text-right py-2 font-medium">Hours</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {sa.useCases.map((uc, i) => (
+                        <tr key={i} className="border-t border-[#ecedef]">
+                          <td className="py-2 font-sans">{uc.customer}</td>
+                          <td className="py-2 font-sans">{uc.name}</td>
+                          <td className="py-2">
+                            <span className={`mono-label text-[10px] px-1.5 py-0.5 ${
+                              uc.month === 1 ? 'bg-[#e6f7ee]' : uc.month === 2 ? 'bg-[#ccf0dc]' : 'bg-[#b3e8cc]'
+                            } text-[#008c44]`}>
+                              M{uc.month}
+                            </span>
+                          </td>
+                          <td className="py-2 text-right font-mono">{uc.hours}h</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Assumptions footer */}
+      <div className="flex items-start gap-3 bg-[#f8faf9] border border-[#d4e8da] p-4">
+        <span className="mono-label text-[10px] px-2 py-1 bg-[#000d05] text-white shrink-0">ASSUMPTIONS</span>
+        <p className="text-xs text-[#676c79]">
+          160 hrs/person/mo — 80% util = 128 effective — M1: 35h — M2: 25h — M3: 10h — Capacity counted per use case (subtask)
+        </p>
       </div>
     </div>
   );
@@ -1747,7 +1871,7 @@ export default function App() {
     const saOptions = sasSortedByCapacity.map((sa, idx) => ({
       label: idx === 0 ? `${sa.name} — Recommended` : sa.name,
       value: sa.name,
-      badge: <CapacityBadge count={getEffectiveLoad(sa)} />
+      badge: <CapacityBadge pct={sa.utilizationPct} />
     }));
 
     const handleSubmit = () => {
@@ -1988,7 +2112,7 @@ export default function App() {
               {sa1 || 'Unassigned'}
             </div>
             <p className="text-xs text-[#008c44] flex items-center gap-1">
-              <CheckCircle2 size={12} /> Auto-assigned — lowest active workload ({sasSortedByCapacity[0] ? getEffectiveLoad(sasSortedByCapacity[0]) : 0} effective)
+              <CheckCircle2 size={12} /> Auto-assigned — lowest utilization ({sasSortedByCapacity[0]?.utilizationPct ?? 0}%)
             </p>
           </div>
 
