@@ -855,6 +855,15 @@ export default function App() {
     return () => clearInterval(interval);
   }, [agentRunId, selectedKickoffId]);
 
+  // Auto-check "Deck Created" task when a deck is created
+  useEffect(() => {
+    if (!selectedKickoff || !deckResults[selectedKickoff.id]) return;
+    const deckTaskIndex = STANDARD_TASKS.indexOf('Deck Created');
+    if (deckTaskIndex !== -1 && !selectedKickoff.tasks[deckTaskIndex]) {
+      handleToggleTask(selectedKickoff.id, deckTaskIndex);
+    }
+  }, [deckResults, selectedKickoff?.id]);
+
   // Poll for Slack channel creation completion
   useEffect(() => {
     if (!slackRunId || !slackKickoffId) return;
@@ -2382,7 +2391,7 @@ export default function App() {
                   >
                     {task}
                   </span>
-                  {task === 'Deck Created' && (
+                  {task === 'Deck Created' && !deckResults[selectedKickoff.id] && (
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
