@@ -1631,6 +1631,69 @@ export default function App() {
   const currentMonth = new Date().toLocaleString('en-US', { month: 'long' });
   const currentYear = new Date().getFullYear();
 
+  const SACapacityLoadingSkeleton = () => (
+    <div className="space-y-6 animate-in fade-in duration-500">
+      {/* Header Skeleton */}
+      <div>
+        <div className="h-4 w-24 bg-[#e0e0e0] rounded mb-3" />
+        <div className="h-10 w-64 bg-[#e0e0e0] rounded mb-2" />
+        <div className="h-4 w-96 bg-[#f0f0f0] rounded" />
+      </div>
+
+      {/* Pod Filter Skeleton */}
+      <div className="flex gap-0 border border-[#d4e8da] w-fit">
+        {[0, 1, 2, 3].map(i => (
+          <div key={i} className={`px-5 py-2.5 bg-[#f0f0f0] ${i > 0 ? 'border-l border-[#d4e8da]' : ''} w-24 h-10 rounded-none`} />
+        ))}
+      </div>
+
+      {/* Summary Cards Skeleton */}
+      <div className="grid grid-cols-4 gap-0 border border-[#d4e8da]">
+        {[0, 1, 2, 3].map(i => (
+          <div key={i} className={`p-5 ${i < 3 ? 'border-r border-[#d4e8da]' : ''}`}>
+            <div className="h-3 w-20 bg-[#f0f0f0] rounded mb-2" />
+            <div className="h-8 w-12 bg-[#e0e0e0] rounded mb-1" />
+            <div className="h-3 w-32 bg-[#f0f0f0] rounded" />
+          </div>
+        ))}
+      </div>
+
+      {/* Legend Skeleton */}
+      <div className="flex items-center gap-6">
+        {[0, 1, 2, 3].map(i => (
+          <div key={i} className="h-4 w-32 bg-[#f0f0f0] rounded" />
+        ))}
+      </div>
+
+      {/* SA Rows Skeleton */}
+      <div className="space-y-0 border border-[#d4e8da]">
+        {[0, 1, 2, 3, 4].map(i => (
+          <div key={i} className="border-b border-[#ecedef] last:border-b-0 px-5 py-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-3 flex-1">
+                <div className="h-4 w-32 bg-[#e0e0e0] rounded" />
+                <div className="h-4 w-24 bg-[#f0f0f0] rounded" />
+                <div className="h-5 w-16 border border-[#d4e8da] rounded bg-[#f0f0f0]" />
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="h-5 w-12 bg-[#f0f0f0] rounded" />
+                <div className="h-5 w-12 bg-[#f0f0f0] rounded" />
+                <div className="h-4 w-16 bg-[#f0f0f0] rounded" />
+              </div>
+            </div>
+            <div className="h-5 bg-[#f0f0f0] rounded w-full" />
+          </div>
+        ))}
+      </div>
+
+      {/* Footer Skeleton */}
+      <div className="flex gap-3 bg-[#f8faf9] border border-[#d4e8da] p-4">
+        <div className="h-6 w-24 bg-[#e0e0e0] rounded shrink-0" />
+        <div className="h-4 w-full bg-[#f0f0f0] rounded" />
+      </div>
+    </div>
+  );
+
   const SACapacityView = () => (
     <div className="space-y-6 animate-in fade-in duration-500">
       {/* Header */}
@@ -2715,7 +2778,7 @@ export default function App() {
       <main className="flex-1 md:ml-[220px] p-4 pt-16 md:pt-12 md:p-12">
         {view === 'schedule' && <WeeklyScheduleView />}
         {view === 'all' && <AllKickoffsView />}
-        {view === 'capacity' && <SACapacityView />}
+        {view === 'capacity' && (saLoadingState === 'loading' ? <SACapacityLoadingSkeleton /> : <SACapacityView />)}
         {view === 'settings' && <SettingsView />}
       </main>
 
