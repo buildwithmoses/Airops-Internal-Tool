@@ -75,9 +75,6 @@ export default async function handler(req: any, res: any) {
         csLead: payload.csLead,
         kickoffDate: payload.kickoffDate,
         notionContent: payload.notionContent,
-        slackChannel: payload.slackChannel,
-        slackThreadTs: payload.slackThreadTs,
-        slackUserId: payload.slackUserId,
       });
 
       return sendJson(res, 200, { ok: true, runId: handle.id });
