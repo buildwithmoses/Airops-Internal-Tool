@@ -165,49 +165,27 @@ export default async function handler(req: any, res: any) {
         saMap[saName].clients.push(customer);
       }
 
-      // Process subtasks (use cases)
+      // Process only subtasks (use cases)
       const subtasks = subtasksMap[task.gid] || [];
 
-      if (subtasks.length > 0) {
-        for (const sub of subtasks) {
-          if (sub.completed) continue;
+      for (const sub of subtasks) {
+        if (sub.completed) continue;
 
-          // Get Kickoff Date from subtask custom field
-          let kickoffDate: string | null = null;
-          for (const cf of sub.custom_fields || []) {
-            if (cf.gid === KICKOFF_DATE_GID && cf.date_value?.date) {
-              kickoffDate = cf.date_value.date;
-            }
-          }
-
-          const month = getMonth(kickoffDate, now);
-
-          // Include use case even if no date (month will be null)
-          if (month || !kickoffDate) {
-            saMap[saName].useCases.push({
-              customer,
-              name: sub.name,
-              month,
-              hours: month ? getHoursForMonth(month) : 0,
-              customerStatus,
-            });
-          }
-        }
-      } else {
-        // No subtasks — check Kickoff Date on the task itself
+        // Get Kickoff Date from subtask custom field
         let kickoffDate: string | null = null;
-        for (const cf of task.custom_fields || []) {
-          if (cf.gid === KICKOFF_DATE_GID) {
-            kickoffDate = cf.display_value ? cf.display_value.split('T')[0] : null;
+        for (const cf of sub.custom_fields || []) {
+          if (cf.gid === KICKOFF_DATE_GID && cf.date_value?.date) {
+            kickoffDate = cf.date_value.date;
           }
         }
+
         const month = getMonth(kickoffDate, now);
 
         // Include use case even if no date (month will be null)
         if (month || !kickoffDate) {
           saMap[saName].useCases.push({
             customer,
-            name: task.name,
+            name: sub.name,
             month,
             hours: month ? getHoursForMonth(month) : 0,
             customerStatus,
