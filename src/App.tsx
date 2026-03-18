@@ -2013,7 +2013,7 @@ export default function App() {
     );
 
     const filteredAEs = hubspotAEs.filter((a: HubSpotAE) =>
-      a.name.toLowerCase().includes(aeSearch.toLowerCase())
+      (a.name || '').toLowerCase().includes(aeSearch.toLowerCase())
     );
 
     useEffect(() => {
