@@ -1885,11 +1885,11 @@ export default function App() {
                               } text-[#008c44]`}>
                                 M{uc.month}
                               </span>
-                            ) : (
+                            ) : uc.customerStatus !== 'Pre-Activation' ? (
                               <span className="mono-label text-[10px] px-1.5 py-0.5 bg-[#fde8e8] text-[#cc0000]">
                                 NO DATE
                               </span>
-                            )}
+                            ) : null}
                           </td>
                           <td className="py-2 text-right font-mono">{uc.hours}h</td>
                         </tr>
