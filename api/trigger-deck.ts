@@ -357,7 +357,7 @@ export default async function handler(req: any, res: any) {
       });
 
       const result = await resp.json();
-      // Retool returns data array directly
+      // Retool returns data array directly (already filtered for Closed Won deals)
       let deals: any[] = [];
       try {
         const allDeals = Array.isArray(result.data) ? result.data : [];
