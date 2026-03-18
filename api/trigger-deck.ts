@@ -347,17 +347,11 @@ export default async function handler(req: any, res: any) {
     if (action === 'hubspot-deals') {
       if (req.method !== 'GET') return sendJson(res, 405, { error: 'Method not allowed' });
 
-      const webhookUrl = process.env.RETOOL_HUBSPOT_WEBHOOK_URL;
-      const apiKey = process.env.RETOOL_HUBSPOT_API_KEY;
-      if (!webhookUrl || !apiKey) {
-        return sendJson(res, 500, { error: 'Retool HubSpot webhook not configured' });
-      }
-
-      const resp = await fetch(webhookUrl, {
+      const resp = await fetch('https://api.retool.com/v1/workflows/14d7f618-5007-4fb1-a530-77f6adcaca28/startTrigger', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-Workflow-Api-Key': apiKey,
+          'X-Workflow-Api-Key': 'retool_wk_d03bac71efb14331876a63217c8ccd5a',
         },
         body: '{}',
       });
@@ -380,17 +374,11 @@ export default async function handler(req: any, res: any) {
     if (action === 'hubspot-aes') {
       if (req.method !== 'GET') return sendJson(res, 405, { error: 'Method not allowed' });
 
-      const webhookUrl = process.env.RETOOL_HUBSPOT_AES_WEBHOOK_URL;
-      const apiKey = process.env.RETOOL_HUBSPOT_AES_API_KEY;
-      if (!webhookUrl || !apiKey) {
-        return sendJson(res, 500, { error: 'Retool HubSpot AEs webhook not configured' });
-      }
-
-      const resp = await fetch(webhookUrl, {
+      const resp = await fetch('https://api.retool.com/v1/workflows/14d7f618-5007-4fb1-a530-77f6adcaca28/startTrigger', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-Workflow-Api-Key': apiKey,
+          'X-Workflow-Api-Key': 'retool_wk_d03bac71efb14331876a63217c8ccd5a',
         },
         body: '{}',
       });
