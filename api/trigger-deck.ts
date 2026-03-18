@@ -357,11 +357,10 @@ export default async function handler(req: any, res: any) {
       });
 
       const result = await resp.json();
-      // Retool returns { data: { statusCode, body } } where body is a JSON string
+      // Retool returns data array directly
       let deals: any[] = [];
       try {
-        const body = typeof result.data?.body === 'string' ? JSON.parse(result.data.body) : result.data?.body;
-        const allDeals = body?.deals || [];
+        const allDeals = Array.isArray(result.data) ? result.data : [];
         // Only return name and amount (ARR) for dropdown efficiency
         deals = allDeals.map((d: any) => ({
           id: d.id,
@@ -390,7 +389,7 @@ export default async function handler(req: any, res: any) {
       });
 
       const result = await resp.json();
-      const aes = result.data?.aes || [];
+      const aes = Array.isArray(result.data) ? result.data : [];
 
       res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=600');
       return sendJson(res, 200, { aes });
