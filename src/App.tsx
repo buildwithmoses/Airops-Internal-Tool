@@ -2009,7 +2009,7 @@ export default function App() {
     };
 
     const filteredDeals = hubspotDeals.filter((d: HubSpotDeal) =>
-      d.name.toLowerCase().includes(dealSearch.toLowerCase())
+      (d.name || '').toLowerCase().includes(dealSearch.toLowerCase())
     );
 
     const filteredAEs = hubspotAEs.filter((a: HubSpotAE) =>
