@@ -713,19 +713,39 @@ export default function App() {
       })
       .catch(() => {});
 
-    // Fetch HubSpot closed-won deals for booking dropdown
+    // Fetch HubSpot closed-won deals with localStorage caching
+    const cachedDeals = localStorage.getItem('hubspot-deals');
+    if (cachedDeals) {
+      try {
+        setHubspotDeals(JSON.parse(cachedDeals));
+      } catch {}
+    }
+    // Fetch fresh deals in background
     fetch('/api/trigger-deck?action=hubspot-deals')
       .then(res => res.json())
       .then(json => {
-        if (json.deals?.length > 0) setHubspotDeals(json.deals);
+        if (json.deals?.length > 0) {
+          setHubspotDeals(json.deals);
+          localStorage.setItem('hubspot-deals', JSON.stringify(json.deals));
+        }
       })
       .catch(() => {});
 
-    // Fetch HubSpot AE list for booking dropdown
+    // Fetch HubSpot AE list with localStorage caching
+    const cachedAEs = localStorage.getItem('hubspot-aes');
+    if (cachedAEs) {
+      try {
+        setHubspotAEs(JSON.parse(cachedAEs));
+      } catch {}
+    }
+    // Fetch fresh AEs in background
     fetch('/api/trigger-deck?action=hubspot-aes')
       .then(res => res.json())
       .then(json => {
-        if (json.aes?.length > 0) setHubspotAEs(json.aes);
+        if (json.aes?.length > 0) {
+          setHubspotAEs(json.aes);
+          localStorage.setItem('hubspot-aes', JSON.stringify(json.aes));
+        }
       })
       .catch(() => {});
 

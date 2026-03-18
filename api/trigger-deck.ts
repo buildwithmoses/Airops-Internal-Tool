@@ -361,7 +361,13 @@ export default async function handler(req: any, res: any) {
       let deals: any[] = [];
       try {
         const body = typeof result.data?.body === 'string' ? JSON.parse(result.data.body) : result.data?.body;
-        deals = body?.deals || [];
+        const allDeals = body?.deals || [];
+        // Only return name and amount (ARR) for dropdown efficiency
+        deals = allDeals.map((d: any) => ({
+          id: d.id,
+          name: d.properties?.dealname || 'Unknown',
+          amount: d.properties?.amount || '0',
+        }));
       } catch {
         deals = [];
       }
