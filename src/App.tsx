@@ -102,6 +102,7 @@ interface UseCase {
   name: string;
   month: 1 | 2 | 3 | null;
   hours: number;
+  customerStatus?: string;
 }
 
 interface SA {
@@ -1855,9 +1856,27 @@ export default function App() {
                       </tr>
                     </thead>
                     <tbody>
-                      {sa.useCases.map((uc, i) => (
+                      {sa.useCases.map((uc, i) => {
+                        const statusColors: Record<string, string> = {
+                          'Pre-Activation': 'bg-[#b3e5fc] text-[#01579b]',
+                          'Activation': 'bg-[#f8bbd0] text-[#880e4f]',
+                          'Live but Syncs': 'bg-[#ffe0b2] text-[#e65100]',
+                          'Async Support': 'bg-[#c8e6c9] text-[#1b5e20]',
+                          'Churned': 'bg-[#ffccbc] text-[#d84315]',
+                        };
+                        const statusClass = uc.customerStatus ? statusColors[uc.customerStatus] || 'bg-[#f0f0f0] text-[#676c79]' : 'bg-[#f0f0f0] text-[#a5aab6]';
+                        return (
                         <tr key={i} className="border-t border-[#ecedef]">
-                          <td className="py-2 font-sans">{uc.customer}</td>
+                          <td className="py-2 font-sans">
+                            <div className="flex flex-col gap-1">
+                              <span>{uc.customer}</span>
+                              {uc.customerStatus && (
+                                <span className={`mono-label text-[9px] px-1.5 py-0.5 w-fit rounded ${statusClass}`}>
+                                  {uc.customerStatus}
+                                </span>
+                              )}
+                            </div>
+                          </td>
                           <td className="py-2 font-sans">{uc.name}</td>
                           <td className="py-2">
                             {uc.month ? (
@@ -1874,7 +1893,8 @@ export default function App() {
                           </td>
                           <td className="py-2 text-right font-mono">{uc.hours}h</td>
                         </tr>
-                      ))}
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>

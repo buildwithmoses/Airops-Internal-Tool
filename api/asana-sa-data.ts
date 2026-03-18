@@ -138,7 +138,7 @@ export default async function handler(req: any, res: any) {
 
     // Build SA capacity data
     const saMap: Record<string, {
-      useCases: Array<{ customer: string; name: string; month: 1 | 2 | 3; hours: number }>;
+      useCases: Array<{ customer: string; name: string; month: 1 | 2 | 3 | null; hours: number; customerStatus?: string }>;
       clients: string[];
     }> = {};
 
@@ -147,9 +147,13 @@ export default async function handler(req: any, res: any) {
 
       // Get customer name from custom field or task name
       let customerName: string | null = null;
+      let customerStatus: string | null = null;
       for (const cf of task.custom_fields || []) {
         if (cf.gid === CUSTOMER_FIELD_GID) {
           customerName = cf.text_value || cf.display_value || null;
+        }
+        if (cf.gid === CUSTOMER_STATUS_GID) {
+          customerStatus = cf.enum_value?.name || cf.display_value || null;
         }
       }
       const customer = customerName || task.name;
@@ -185,6 +189,7 @@ export default async function handler(req: any, res: any) {
               name: sub.name,
               month,
               hours: month ? getHoursForMonth(month) : 0,
+              customerStatus,
             });
           }
         }
@@ -205,6 +210,7 @@ export default async function handler(req: any, res: any) {
             name: task.name,
             month,
             hours: month ? getHoursForMonth(month) : 0,
+            customerStatus,
           });
         }
       }
