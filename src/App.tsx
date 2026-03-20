@@ -2164,63 +2164,13 @@ export default function App() {
 
           <div className="space-y-2">
             <label className="mono-label text-[#676c79]">AE Name</label>
-            {hubspotAEs.length > 0 ? (
-              <div ref={aeRef} className="relative">
-                <div
-                  onClick={() => setAeDropdownOpen(!aeDropdownOpen)}
-                  className="w-full p-3 border border-[#d4e8da] focus-within:border-[#008c44] cursor-pointer flex items-center justify-between"
-                >
-                  <span className={`text-sm ${aeName ? 'text-[#09090b]' : 'text-[#a5aab6]'}`}>
-                    {aeName || 'Select AE...'}
-                  </span>
-                  <ChevronRight size={16} className={`text-[#676c79] transition-transform ${aeDropdownOpen ? 'rotate-90' : ''}`} />
-                </div>
-                {aeDropdownOpen && (
-                  <div className="absolute top-full left-0 w-full bg-white border border-[#d4e8da] z-50 shadow-xl mt-1 max-h-72 overflow-hidden flex flex-col">
-                    <div className="p-2 border-b border-[#ecedef]">
-                      <div className="flex items-center gap-2 px-2 py-1.5 bg-[#f8f8f8] border border-[#d4e8da]">
-                        <Search size={14} className="text-[#a5aab6] flex-shrink-0" />
-                        <input
-                          type="text"
-                          value={aeSearch}
-                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setAeSearch(e.target.value)}
-                          placeholder="Search AEs..."
-                          className="w-full bg-transparent outline-none text-sm"
-                          autoFocus
-                        />
-                      </div>
-                    </div>
-                    <div className="overflow-y-auto max-h-56">
-                      {filteredAEs.length === 0 ? (
-                        <div className="px-4 py-3 text-sm text-[#a5aab6] text-center">No AEs found</div>
-                      ) : (
-                        filteredAEs.map((ae: HubSpotAE) => (
-                          <button
-                            key={ae.id}
-                            onClick={() => {
-                              setAeName(ae.name);
-                              setAeDropdownOpen(false);
-                              setAeSearch('');
-                            }}
-                            className={`w-full px-4 py-2.5 text-left text-sm hover:bg-[#f0faf4] transition-colors ${aeName === ae.name ? 'bg-[#f0faf4] font-bold' : ''}`}
-                          >
-                            <span className="font-sans">{ae.name}</span>
-                          </button>
-                        ))
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <input
-                type="text"
-                value={aeName}
-                onChange={(e) => setAeName(e.target.value)}
-                placeholder="Enter AE name"
-                className="w-full p-3 border border-[#d4e8da] focus:border-[#008c44] outline-none"
-              />
-            )}
+            <input
+              type="text"
+              value={aeName}
+              onChange={(e) => setAeName(e.target.value)}
+              placeholder="Enter AE name"
+              className="w-full p-3 border border-[#d4e8da] focus:border-[#008c44] outline-none"
+            />
           </div>
 
           {/* SA (auto-assigned, not editable) */}
