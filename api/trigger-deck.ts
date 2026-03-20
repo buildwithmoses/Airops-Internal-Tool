@@ -389,7 +389,21 @@ export default async function handler(req: any, res: any) {
       });
 
       const result = await resp.json();
-      const aes = Array.isArray(result.data) ? result.data : [];
+      // Retool returns data array directly (HubSpot owner objects)
+      let aes: any[] = [];
+      try {
+        const allData = Array.isArray(result.data) ? result.data : [];
+        // Extract AE name and email from HubSpot owner properties
+        aes = allData.map((a: any) => ({
+          id: a.id,
+          name: a.properties?.firstname && a.properties?.lastname
+            ? `${a.properties.firstname} ${a.properties.lastname}`
+            : a.properties?.email || 'Unknown',
+          email: a.properties?.email || '',
+        }));
+      } catch {
+        aes = [];
+      }
 
       res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=600');
       return sendJson(res, 200, { aes });
