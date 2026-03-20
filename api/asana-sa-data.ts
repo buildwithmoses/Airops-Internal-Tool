@@ -132,8 +132,19 @@ export default async function handler(req: any, res: any) {
     // Filter to active (incomplete) tasks with assignees
     const activeTasks = tasks.filter(t => !t.completed && t.assignee?.name);
 
-    // Fetch subtasks for all active tasks
-    const taskGids = activeTasks.map(t => t.gid);
+    // Identify Integration Engineers (anyone assigned to tasks with "integration" in the name)
+    const ieSet = new Set<string>();
+    for (const task of activeTasks) {
+      if (task.name.toLowerCase().includes('integration')) {
+        ieSet.add(task.assignee!.name);
+      }
+    }
+
+    // Filter out IEs from active tasks
+    const saTasks = activeTasks.filter(t => !ieSet.has(t.assignee!.name));
+
+    // Fetch subtasks for all SA tasks
+    const taskGids = saTasks.map(t => t.gid);
     const subtasksMap = await fetchAllSubtasks(taskGids);
 
     // Build SA capacity data
@@ -142,7 +153,7 @@ export default async function handler(req: any, res: any) {
       clients: string[];
     }> = {};
 
-    for (const task of activeTasks) {
+    for (const task of saTasks) {
       const saName = task.assignee!.name;
 
       // Get customer name from custom field or task name
