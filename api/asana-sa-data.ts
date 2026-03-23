@@ -27,6 +27,15 @@ interface AsanaTask {
   }>;
 }
 
+interface UseCase {
+  customer: string;
+  name: string;
+  month: 1 | 2 | 3 | null;
+  hours: number;
+  customerStatus?: string;
+  isPlaceholder?: boolean; // Marks use cases with no subtasks
+}
+
 interface AsanaSubtask {
   gid: string;
   name: string;
@@ -149,8 +158,9 @@ export default async function handler(req: any, res: any) {
 
     // Build SA capacity data
     const saMap: Record<string, {
-      useCases: Array<{ customer: string; name: string; month: 1 | 2 | 3 | null; hours: number; customerStatus?: string }>;
+      useCases: UseCase[];
       clients: string[];
+      customerStatus: Record<string, string | null>;
     }> = {};
 
     for (const task of saTasks) {
@@ -170,14 +180,16 @@ export default async function handler(req: any, res: any) {
       const customer = customerName || task.name;
 
       if (!saMap[saName]) {
-        saMap[saName] = { useCases: [], clients: [] };
+        saMap[saName] = { useCases: [], clients: [], customerStatus: {} };
       }
       if (!saMap[saName].clients.includes(customer)) {
         saMap[saName].clients.push(customer);
       }
+      saMap[saName].customerStatus[customer] = customerStatus;
 
       // Process only subtasks (use cases)
       const subtasks = subtasksMap[task.gid] || [];
+      let hasValidUseCase = false;
 
       for (const sub of subtasks) {
         if (sub.completed || sub.name.toLowerCase().includes('integration')) continue;
@@ -205,20 +217,35 @@ export default async function handler(req: any, res: any) {
             hours: month ? getHoursForMonth(month) : 0,
             customerStatus: subtaskCustomerStatus || customerStatus, // Use subtask status if available, fallback to task status
           });
+          hasValidUseCase = true;
         }
+      }
+
+      // If no valid use cases found, add a placeholder so customer still shows up
+      if (!hasValidUseCase) {
+        saMap[saName].useCases.push({
+          customer,
+          name: '(No use cases)',
+          month: null,
+          hours: 0,
+          customerStatus,
+          isPlaceholder: true,
+        });
       }
     }
 
     const saData = Object.entries(saMap)
       .map(([name, data]) => {
-        const m1Count = data.useCases.filter(uc => uc.month === 1).length;
-        const m2Count = data.useCases.filter(uc => uc.month === 2).length;
-        const m3Count = data.useCases.filter(uc => uc.month === 3).length;
-        const totalHours = data.useCases.filter(uc => uc.month !== null).reduce((sum, uc) => sum + uc.hours, 0);
+        // Count only non-placeholder use cases for capacity calculation
+        const nonPlaceholderUseCases = data.useCases.filter(uc => !uc.isPlaceholder);
+        const m1Count = nonPlaceholderUseCases.filter(uc => uc.month === 1).length;
+        const m2Count = nonPlaceholderUseCases.filter(uc => uc.month === 2).length;
+        const m3Count = nonPlaceholderUseCases.filter(uc => uc.month === 3).length;
+        const totalHours = nonPlaceholderUseCases.filter(uc => uc.month !== null).reduce((sum, uc) => sum + uc.hours, 0);
 
         return {
           name,
-          useCases: data.useCases,
+          useCases: data.useCases, // Includes both real use cases and placeholders
           totalHours,
           monthBreakdown: { m1: m1Count, m2: m2Count, m3: m3Count },
           capacity: 128,

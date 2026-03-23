@@ -1916,12 +1916,14 @@ export default function App() {
                               {/* Nested use case rows - status shown here */}
                               {isCustomerExpanded && useCases.map((uc, ucIdx) => {
                                 const statusClass = uc.customerStatus ? statusColors[uc.customerStatus] || 'bg-[#f0f0f0] text-[#676c79]' : 'bg-[#f0f0f0] text-[#a5aab6]';
+                                const isPlaceholder = (uc as any).isPlaceholder;
+
                                 return (
-                                  <tr key={ucIdx} className="border-t border-[#ecedef] bg-[#fafbfa]">
+                                  <tr key={ucIdx} className={`border-t border-[#ecedef] ${isPlaceholder ? 'bg-[#f5f5f5]' : 'bg-[#fafbfa]'}`}>
                                     <td className="py-2 px-8 font-sans">
                                       <div className="flex flex-col gap-1">
-                                        <span className="text-[#000d05]">{uc.name}</span>
-                                        {uc.customerStatus && (
+                                        <span className={`${isPlaceholder ? 'text-[#a5aab6] italic' : 'text-[#000d05]'}`}>{uc.name}</span>
+                                        {uc.customerStatus && !isPlaceholder && (
                                           <span className={`mono-label text-[9px] px-1.5 py-0.5 w-fit rounded ${statusClass}`}>
                                             {uc.customerStatus}
                                           </span>
@@ -1929,7 +1931,7 @@ export default function App() {
                                       </div>
                                     </td>
                                     <td className="py-2">
-                                      {uc.month ? (
+                                      {!isPlaceholder && (uc.month ? (
                                         <span className={`mono-label text-[10px] px-1.5 py-0.5 ${
                                           uc.month === 1 ? 'bg-[#e6f7ee]' : uc.month === 2 ? 'bg-[#ccf0dc]' : 'bg-[#b3e8cc]'
                                         } text-[#008c44]`}>
@@ -1939,9 +1941,9 @@ export default function App() {
                                         <span className="mono-label text-[10px] px-1.5 py-0.5 bg-[#fde8e8] text-[#cc0000]">
                                           NO DATE
                                         </span>
-                                      ) : null}
+                                      ) : null)}
                                     </td>
-                                    <td className="py-2 text-right font-mono">{uc.hours}h</td>
+                                    <td className="py-2 text-right font-mono">{!isPlaceholder ? `${uc.hours}h` : ''}</td>
                                   </tr>
                                 );
                               })}
