@@ -202,6 +202,9 @@ export default async function handler(req: any, res: any) {
       for (const sub of subtasks) {
         if (sub.name.toLowerCase().includes('integration')) continue;
 
+        // Skip subtasks assigned to IE or CMS people
+        if (sub.assignee && (ieSet.has(sub.assignee.name) || cmsSet.has(sub.assignee.name))) continue;
+
         // Get Kickoff Date and Customer Status from subtask custom fields
         let kickoffDate: string | null = null;
         let subtaskCustomerStatus: string | null = null;
