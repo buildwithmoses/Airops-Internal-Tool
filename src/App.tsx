@@ -1889,12 +1889,10 @@ export default function App() {
                       <tbody>
                         {Object.entries(customerGroups).map(([customerName, useCases]) => {
                           const isCustomerExpanded = expandedCustomers.has(customerName);
-                          const firstUC = useCases[0];
-                          const statusClass = firstUC.customerStatus ? statusColors[firstUC.customerStatus] || 'bg-[#f0f0f0] text-[#676c79]' : 'bg-[#f0f0f0] text-[#a5aab6]';
 
                           return (
                             <React.Fragment key={customerName}>
-                              {/* Customer header row */}
+                              {/* Customer header row - no status badge */}
                               <tr className="border-t border-[#ecedef] bg-white hover:bg-[#f0faf4] transition-colors cursor-pointer" onClick={() => {
                                 const newSet = new Set(expandedCustomers);
                                 if (isCustomerExpanded) {
@@ -1907,14 +1905,7 @@ export default function App() {
                                 <td className="py-3 px-2 font-sans">
                                   <div className="flex items-center gap-2">
                                     <ChevronDown size={14} className={`text-[#676c79] transition-transform shrink-0 ${isCustomerExpanded ? 'rotate-180' : ''}`} />
-                                    <div className="flex flex-col gap-1">
-                                      <span className="font-medium">{customerName}</span>
-                                      {firstUC.customerStatus && (
-                                        <span className={`mono-label text-[9px] px-1.5 py-0.5 w-fit rounded ${statusClass}`}>
-                                          {firstUC.customerStatus}
-                                        </span>
-                                      )}
-                                    </div>
+                                    <span className="font-medium">{customerName}</span>
                                   </div>
                                 </td>
                                 <td className="py-3 text-right text-[#676c79]" colSpan={3}>
@@ -1922,26 +1913,38 @@ export default function App() {
                                 </td>
                               </tr>
 
-                              {/* Nested use case rows */}
-                              {isCustomerExpanded && useCases.map((uc, ucIdx) => (
-                                <tr key={ucIdx} className="border-t border-[#ecedef] bg-[#fafbfa]">
-                                  <td className="py-2 px-8 font-sans text-[#676c79]">{uc.name}</td>
-                                  <td className="py-2">
-                                    {uc.month ? (
-                                      <span className={`mono-label text-[10px] px-1.5 py-0.5 ${
-                                        uc.month === 1 ? 'bg-[#e6f7ee]' : uc.month === 2 ? 'bg-[#ccf0dc]' : 'bg-[#b3e8cc]'
-                                      } text-[#008c44]`}>
-                                        M{uc.month}
-                                      </span>
-                                    ) : uc.customerStatus !== 'Pre-Activation' ? (
-                                      <span className="mono-label text-[10px] px-1.5 py-0.5 bg-[#fde8e8] text-[#cc0000]">
-                                        NO DATE
-                                      </span>
-                                    ) : null}
-                                  </td>
-                                  <td className="py-2 text-right font-mono">{uc.hours}h</td>
-                                </tr>
-                              ))}
+                              {/* Nested use case rows - status shown here */}
+                              {isCustomerExpanded && useCases.map((uc, ucIdx) => {
+                                const statusClass = uc.customerStatus ? statusColors[uc.customerStatus] || 'bg-[#f0f0f0] text-[#676c79]' : 'bg-[#f0f0f0] text-[#a5aab6]';
+                                return (
+                                  <tr key={ucIdx} className="border-t border-[#ecedef] bg-[#fafbfa]">
+                                    <td className="py-2 px-8 font-sans">
+                                      <div className="flex flex-col gap-1">
+                                        <span className="text-[#000d05]">{uc.name}</span>
+                                        {uc.customerStatus && (
+                                          <span className={`mono-label text-[9px] px-1.5 py-0.5 w-fit rounded ${statusClass}`}>
+                                            {uc.customerStatus}
+                                          </span>
+                                        )}
+                                      </div>
+                                    </td>
+                                    <td className="py-2">
+                                      {uc.month ? (
+                                        <span className={`mono-label text-[10px] px-1.5 py-0.5 ${
+                                          uc.month === 1 ? 'bg-[#e6f7ee]' : uc.month === 2 ? 'bg-[#ccf0dc]' : 'bg-[#b3e8cc]'
+                                        } text-[#008c44]`}>
+                                          M{uc.month}
+                                        </span>
+                                      ) : uc.customerStatus !== 'Pre-Activation' ? (
+                                        <span className="mono-label text-[10px] px-1.5 py-0.5 bg-[#fde8e8] text-[#cc0000]">
+                                          NO DATE
+                                        </span>
+                                      ) : null}
+                                    </td>
+                                    <td className="py-2 text-right font-mono">{uc.hours}h</td>
+                                  </tr>
+                                );
+                              })}
                             </React.Fragment>
                           );
                         })}
