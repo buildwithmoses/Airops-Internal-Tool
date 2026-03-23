@@ -194,15 +194,15 @@ export default async function handler(req: any, res: any) {
       for (const sub of subtasks) {
         if (sub.name.toLowerCase().includes('integration')) continue;
 
-        // Get Kickoff Date and Customer Status from subtask custom fields
+        // Get Kickoff Date and Use Case Phase from subtask custom fields
         let kickoffDate: string | null = null;
-        let subtaskCustomerStatus: string | null = null;
+        let usePhase: string | null = null;
         for (const cf of sub.custom_fields || []) {
           if (cf.gid === KICKOFF_DATE_GID && cf.date_value?.date) {
             kickoffDate = cf.date_value.date;
           }
-          if (cf.gid === CUSTOMER_STATUS_GID) {
-            subtaskCustomerStatus = cf.enum_value?.name || cf.display_value || null;
+          if (cf.gid === USE_CASE_PHASE_GID) {
+            usePhase = cf.enum_value?.name || cf.display_value || null;
           }
         }
 
@@ -215,7 +215,7 @@ export default async function handler(req: any, res: any) {
             name: sub.name,
             month,
             hours: month ? getHoursForMonth(month) : 0,
-            customerStatus: subtaskCustomerStatus || customerStatus, // Use subtask status if available, fallback to task status
+            customerStatus: usePhase, // Use case phase from subtask
           });
           hasValidUseCase = true;
         }
