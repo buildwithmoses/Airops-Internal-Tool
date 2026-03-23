@@ -60,7 +60,7 @@ function getHoursForMonth(month: 1 | 2 | 3): number {
 async function fetchAllTasks(): Promise<AsanaTask[]> {
   const allTasks: AsanaTask[] = [];
   let nextPage: string | null = null;
-  const fields = 'name,completed,assignee.name,custom_fields.display_value,custom_fields.enum_value.name,custom_fields.text_value,custom_fields.date_value';
+  const fields = 'name,completed,assignee.name,custom_fields.gid,custom_fields.display_value,custom_fields.enum_value.name,custom_fields.text_value,custom_fields.date_value';
 
   do {
     const url = nextPage
@@ -84,7 +84,7 @@ async function fetchAllTasks(): Promise<AsanaTask[]> {
 }
 
 async function fetchSubtasks(taskGid: string): Promise<AsanaSubtask[]> {
-  const fields = 'name,completed,assignee.name,custom_fields.display_value,custom_fields.date_value';
+  const fields = 'name,completed,assignee.name,custom_fields.gid,custom_fields.display_value,custom_fields.date_value';
   const url = `https://app.asana.com/api/1.0/tasks/${taskGid}/subtasks?opt_fields=${fields}&limit=100`;
 
   const res = await fetch(url, {
@@ -180,7 +180,7 @@ export default async function handler(req: any, res: any) {
       const subtasks = subtasksMap[task.gid] || [];
 
       for (const sub of subtasks) {
-        if (sub.completed) continue;
+        if (sub.completed || sub.name.toLowerCase().includes('integration')) continue;
 
         // Get Kickoff Date from subtask custom field
         let kickoffDate: string | null = null;
