@@ -192,7 +192,7 @@ export default async function handler(req: any, res: any) {
       let hasValidUseCase = false;
 
       for (const sub of subtasks) {
-        if (sub.completed || sub.name.toLowerCase().includes('integration')) continue;
+        if (sub.name.toLowerCase().includes('integration')) continue;
 
         // Get Kickoff Date and Customer Status from subtask custom fields
         let kickoffDate: string | null = null;
