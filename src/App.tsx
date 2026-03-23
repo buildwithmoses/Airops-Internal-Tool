@@ -660,6 +660,7 @@ export default function App() {
   const [showWelcome, setShowWelcome] = useState(false);
   const [hubspotDeals, setHubspotDeals] = useState<HubSpotDeal[]>([]);
   const [hubspotAEs, setHubspotAEs] = useState<HubSpotAE[]>([]);
+  const [excludedPeople, setExcludedPeople] = useState<string[]>([]);
 
   // Detect /book/{id} URL for public booking page (no auth required)
   useEffect(() => {
@@ -780,6 +781,10 @@ export default function App() {
             utilizationPct: sa.utilizationPct || 0,
             notes: '',
           }));
+          // Store excluded people (IE and CMS)
+          if (json.excludedPeople) {
+            setExcludedPeople(json.excludedPeople);
+          }
           // Load persisted SA notes and merge
           fetch('/api/sa-notes-list')
             .then(r => r.json())
@@ -2013,7 +2018,8 @@ export default function App() {
     );
 
     const filteredAEs = hubspotAEs.filter((a: HubSpotAE) =>
-      (a.name || '').toLowerCase().includes(aeSearch.toLowerCase())
+      (a.name || '').toLowerCase().includes(aeSearch.toLowerCase()) &&
+      !excludedPeople.includes(a.name)
     );
 
     useEffect(() => {

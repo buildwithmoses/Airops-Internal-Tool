@@ -149,8 +149,16 @@ export default async function handler(req: any, res: any) {
       }
     }
 
-    // Filter out IEs from active tasks
-    const saTasks = activeTasks.filter(t => !ieSet.has(t.assignee!.name));
+    // Identify CMS specialists (anyone assigned to tasks with "cms" in the name)
+    const cmsSet = new Set<string>();
+    for (const task of activeTasks) {
+      if (task.name.toLowerCase().includes('cms')) {
+        cmsSet.add(task.assignee!.name);
+      }
+    }
+
+    // Filter out IEs and CMS from active tasks
+    const saTasks = activeTasks.filter(t => !ieSet.has(t.assignee!.name) && !cmsSet.has(t.assignee!.name));
 
     // Fetch subtasks for all SA tasks
     const taskGids = saTasks.map(t => t.gid);
@@ -268,7 +276,10 @@ export default async function handler(req: any, res: any) {
       .sort((a, b) => b.utilizationPct - a.utilizationPct);
 
     res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=600');
-    return sendJson(res, 200, { data: saData });
+    return sendJson(res, 200, {
+      data: saData,
+      excludedPeople: Array.from(ieSet).concat(Array.from(cmsSet))
+    });
   } catch (err: any) {
     return sendJson(res, 500, { error: err.message });
   }
