@@ -194,28 +194,40 @@ export default async function handler(req: any, res: any) {
       for (const sub of subtasks) {
         if (sub.name.toLowerCase().includes('integration')) continue;
 
-        // Get Kickoff Date and Use Case Phase from subtask custom fields
+        // Get Kickoff Date and Customer Status from subtask custom fields
         let kickoffDate: string | null = null;
-        let usePhase: string | null = null;
+        let subtaskCustomerStatus: string | null = null;
         for (const cf of sub.custom_fields || []) {
           if (cf.gid === KICKOFF_DATE_GID && cf.date_value?.date) {
             kickoffDate = cf.date_value.date;
           }
-          if (cf.gid === USE_CASE_PHASE_GID) {
-            usePhase = cf.enum_value?.name || cf.display_value || null;
+          if (cf.gid === CUSTOMER_STATUS_GID) {
+            subtaskCustomerStatus = cf.enum_value?.name || cf.display_value || null;
           }
         }
+
+        // Determine assignee: use subtask assignee if available, otherwise use main task assignee
+        const useAssignee = sub.assignee?.name || saName;
 
         const month = getMonth(kickoffDate, now);
 
         // Include use case even if no date (month will be null)
         if (month || !kickoffDate) {
-          saMap[saName].useCases.push({
+          // Initialize map for this assignee if needed
+          if (!saMap[useAssignee]) {
+            saMap[useAssignee] = { useCases: [], clients: [], customerStatus: {} };
+          }
+          if (!saMap[useAssignee].clients.includes(customer)) {
+            saMap[useAssignee].clients.push(customer);
+          }
+          saMap[useAssignee].customerStatus[customer] = subtaskCustomerStatus || customerStatus;
+
+          saMap[useAssignee].useCases.push({
             customer,
             name: sub.name,
             month,
             hours: month ? getHoursForMonth(month) : 0,
-            customerStatus: usePhase, // Use case phase from subtask
+            customerStatus: subtaskCustomerStatus || customerStatus, // Use subtask status if available, fallback to task status
           });
           hasValidUseCase = true;
         }
