@@ -1864,17 +1864,8 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Expanded: Use case details grouped by customer */}
+              {/* Expanded: Flat use case table with company column */}
               {isExpanded && sa.useCases.length > 0 && (() => {
-                // Group use cases by customer
-                const customerGroups: Record<string, typeof sa.useCases> = {};
-                sa.useCases.forEach(uc => {
-                  if (!customerGroups[uc.customer]) {
-                    customerGroups[uc.customer] = [];
-                  }
-                  customerGroups[uc.customer].push(uc);
-                });
-
                 const statusColors: Record<string, string> = {
                   'Pre-Activation': 'bg-[#b3e5fc] text-[#01579b]',
                   'Activation': 'bg-[#f8bbd0] text-[#880e4f]',
@@ -1887,67 +1878,40 @@ export default function App() {
                   <div className="px-5 pb-4 bg-[#f8faf9]">
                     <table className="w-full text-xs">
                       <tbody>
-                        {Object.entries(customerGroups).map(([customerName, useCases]) => {
-                          const isCustomerExpanded = expandedCustomers.has(customerName);
+                        {sa.useCases.map((uc, ucIdx) => {
+                          const statusClass = uc.customerStatus ? statusColors[uc.customerStatus] || 'bg-[#f0f0f0] text-[#676c79]' : 'bg-[#f0f0f0] text-[#a5aab6]';
+                          const isPlaceholder = (uc as any).isPlaceholder;
 
                           return (
-                            <React.Fragment key={customerName}>
-                              {/* Customer header row - no status badge */}
-                              <tr className="border-t border-[#ecedef] bg-white hover:bg-[#f0faf4] transition-colors cursor-pointer" onClick={() => {
-                                const newSet = new Set(expandedCustomers);
-                                if (isCustomerExpanded) {
-                                  newSet.delete(customerName);
-                                } else {
-                                  newSet.add(customerName);
-                                }
-                                setExpandedCustomers(newSet);
-                              }}>
-                                <td className="py-3 px-2 font-sans">
-                                  <div className="flex items-center gap-2">
-                                    <ChevronDown size={14} className={`text-[#676c79] transition-transform shrink-0 ${isCustomerExpanded ? 'rotate-180' : ''}`} />
-                                    <span className="font-medium">{customerName}</span>
-                                  </div>
-                                </td>
-                                <td className="py-3 text-right text-[#676c79]" colSpan={3}>
-                                  <span className="text-[10px] mono-label">{useCases.length} USE CASES</span>
-                                </td>
-                              </tr>
-
-                              {/* Nested use case rows - status shown here */}
-                              {isCustomerExpanded && useCases.map((uc, ucIdx) => {
-                                const statusClass = uc.customerStatus ? statusColors[uc.customerStatus] || 'bg-[#f0f0f0] text-[#676c79]' : 'bg-[#f0f0f0] text-[#a5aab6]';
-                                const isPlaceholder = (uc as any).isPlaceholder;
-
-                                return (
-                                  <tr key={ucIdx} className={`border-t border-[#ecedef] ${isPlaceholder ? 'bg-[#f5f5f5]' : 'bg-[#fafbfa]'}`}>
-                                    <td className="py-2 px-8 font-sans">
-                                      <div className="flex flex-col gap-1">
-                                        <span className={`${isPlaceholder ? 'text-[#a5aab6] italic' : 'text-[#000d05]'}`}>{uc.name}</span>
-                                        {uc.customerStatus && !isPlaceholder && (
-                                          <span className={`mono-label text-[9px] px-1.5 py-0.5 w-fit rounded ${statusClass}`}>
-                                            {uc.customerStatus}
-                                          </span>
-                                        )}
-                                      </div>
-                                    </td>
-                                    <td className="py-2">
-                                      {!isPlaceholder && (uc.month ? (
-                                        <span className={`mono-label text-[10px] px-1.5 py-0.5 ${
-                                          uc.month === 1 ? 'bg-[#e6f7ee]' : uc.month === 2 ? 'bg-[#ccf0dc]' : 'bg-[#b3e8cc]'
-                                        } text-[#008c44]`}>
-                                          M{uc.month}
-                                        </span>
-                                      ) : uc.customerStatus !== 'Pre-Activation' ? (
-                                        <span className="mono-label text-[10px] px-1.5 py-0.5 bg-[#fde8e8] text-[#cc0000]">
-                                          NO DATE
-                                        </span>
-                                      ) : null)}
-                                    </td>
-                                    <td className="py-2 text-right font-mono">{!isPlaceholder ? `${uc.hours}h` : ''}</td>
-                                  </tr>
-                                );
-                              })}
-                            </React.Fragment>
+                            <tr key={ucIdx} className={`border-t border-[#ecedef] ${isPlaceholder ? 'bg-[#f5f5f5]' : 'bg-[#fafbfa]'}`}>
+                              <td className="py-2 px-2 font-sans text-[#676c79]">
+                                {uc.customer}
+                              </td>
+                              <td className="py-2 px-2 font-sans">
+                                <div className="flex flex-col gap-1">
+                                  <span className={`${isPlaceholder ? 'text-[#a5aab6] italic' : 'text-[#000d05]'}`}>{uc.name}</span>
+                                  {uc.customerStatus && !isPlaceholder && (
+                                    <span className={`mono-label text-[9px] px-1.5 py-0.5 w-fit rounded ${statusClass}`}>
+                                      {uc.customerStatus}
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="py-2 px-2">
+                                {!isPlaceholder && (uc.month ? (
+                                  <span className={`mono-label text-[10px] px-1.5 py-0.5 ${
+                                    uc.month === 1 ? 'bg-[#e6f7ee]' : uc.month === 2 ? 'bg-[#ccf0dc]' : 'bg-[#b3e8cc]'
+                                  } text-[#008c44]`}>
+                                    M{uc.month}
+                                  </span>
+                                ) : uc.customerStatus !== 'Pre-Activation' ? (
+                                  <span className="mono-label text-[10px] px-1.5 py-0.5 bg-[#fde8e8] text-[#cc0000]">
+                                    NO DATE
+                                  </span>
+                                ) : null)}
+                              </td>
+                              <td className="py-2 px-2 text-right font-mono">{!isPlaceholder ? `${uc.hours}h` : ''}</td>
+                            </tr>
                           );
                         })}
                       </tbody>
