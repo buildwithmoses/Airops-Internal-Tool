@@ -347,25 +347,25 @@ export default async function handler(req: any, res: any) {
     if (action === 'hubspot-deals') {
       if (req.method !== 'GET') return sendJson(res, 405, { error: 'Method not allowed' });
 
-      const resp = await fetch('https://api.retool.com/v1/workflows/14d7f618-5007-4fb1-a530-77f6adcaca28/startTrigger', {
+      const resp = await fetch('https://api.retool.com/v1/workflows/812948a0-e479-4bd5-bfed-91d27305020e/startTrigger', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-Workflow-Api-Key': 'retool_wk_d03bac71efb14331876a63217c8ccd5a',
+          'X-Workflow-Api-Key': 'retool_wk_a2d5b7cf338c47e79fd7ae2e31ba6f34',
         },
         body: '{}',
       });
 
       const result = await resp.json();
-      // Retool returns data array directly (already filtered for Closed Won deals)
       let deals: any[] = [];
       try {
-        const allDeals = Array.isArray(result.data) ? result.data : [];
-        // Only return name and amount (ARR) for dropdown efficiency
-        deals = allDeals.map((d: any) => ({
+        // Retool returns { data: { statusCode, body } } where body is a JSON string
+        const body = typeof result.data?.body === 'string' ? JSON.parse(result.data.body) : result.data?.body;
+        deals = (body?.deals || []).map((d: any) => ({
           id: d.id,
-          name: d.properties?.dealname || 'Unknown',
-          amount: d.properties?.amount || '0',
+          name: d.name || 'Unknown',
+          amount: d.amount || '0',
+          aeName: d.ownerName || '',
         }));
       } catch {
         deals = [];
@@ -379,27 +379,24 @@ export default async function handler(req: any, res: any) {
     if (action === 'hubspot-aes') {
       if (req.method !== 'GET') return sendJson(res, 405, { error: 'Method not allowed' });
 
-      const resp = await fetch('https://api.retool.com/v1/workflows/14d7f618-5007-4fb1-a530-77f6adcaca28/startTrigger', {
+      const resp = await fetch('https://api.retool.com/v1/workflows/812948a0-e479-4bd5-bfed-91d27305020e/startTrigger', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-Workflow-Api-Key': 'retool_wk_d03bac71efb14331876a63217c8ccd5a',
+          'X-Workflow-Api-Key': 'retool_wk_a2d5b7cf338c47e79fd7ae2e31ba6f34',
         },
         body: '{}',
       });
 
       const result = await resp.json();
-      // Retool returns data array directly (HubSpot owner objects)
       let aes: any[] = [];
       try {
-        const allData = Array.isArray(result.data) ? result.data : [];
-        // Extract AE name and email from HubSpot owner properties
-        aes = allData.map((a: any) => ({
+        // Retool returns { data: { statusCode, body } } where body is a JSON string
+        const body = typeof result.data?.body === 'string' ? JSON.parse(result.data.body) : result.data?.body;
+        aes = (body?.aes || []).map((a: any) => ({
           id: a.id,
-          name: a.properties?.firstname && a.properties?.lastname
-            ? `${a.properties.firstname} ${a.properties.lastname}`
-            : a.properties?.email || 'Unknown',
-          email: a.properties?.email || '',
+          name: a.name || 'Unknown',
+          email: a.email || '',
         }));
       } catch {
         aes = [];
