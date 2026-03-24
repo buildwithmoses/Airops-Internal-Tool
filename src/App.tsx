@@ -722,7 +722,7 @@ export default function App() {
       } catch {}
     }
     // Fetch fresh deals in background
-    fetch('/api/trigger-deck?action=hubspot-deals')
+    fetch(`/api/trigger-deck?action=hubspot-deals&t=${Date.now()}`)
       .then(res => res.json())
       .then(json => {
         if (json.deals?.length > 0) {
@@ -740,7 +740,7 @@ export default function App() {
       } catch {}
     }
     // Fetch fresh AEs in background
-    fetch('/api/trigger-deck?action=hubspot-aes')
+    fetch(`/api/trigger-deck?action=hubspot-aes&t=${Date.now()}`)
       .then(res => res.json())
       .then(json => {
         if (json.aes?.length > 0) {
