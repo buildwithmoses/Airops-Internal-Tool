@@ -1369,7 +1369,8 @@ export default function App() {
                     </span>
                   ) : (
                     <button
-                      onClick={() => {
+                      onClick={(e) => {
+                        e.stopPropagation();
                         setBookingWeek(week);
                         setIsBookingOpen(true);
                       }}
@@ -1491,7 +1492,8 @@ export default function App() {
                   className={`min-h-[60px] md:min-h-[110px] border-b border-r border-[#ecedef] p-1 md:p-2 transition-colors ${
                     day ? 'hover:bg-[#f0faf4]' : 'bg-[#fafafa]'
                   } ${isToday ? 'bg-[#f0faf4]' : ''}`}
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.stopPropagation();
                     if (day) {
                       const weekKickoffCount = kickoffs.filter(k => k.week === dayWeek).length;
                       if (weekKickoffCount >= maxSlots) return; // week is full
