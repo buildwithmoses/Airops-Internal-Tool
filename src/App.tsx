@@ -2794,11 +2794,15 @@ export default function App() {
       <AnimatePresence>
         {isBookingOpen && (
           <>
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setIsBookingOpen(false)}
+              onClick={(e) => {
+                if (e.target === e.currentTarget) {
+                  setIsBookingOpen(false);
+                }
+              }}
               className="fixed inset-0 bg-black/20 backdrop-blur-[2px] z-40"
             />
             <BookingPanel />
