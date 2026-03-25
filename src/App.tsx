@@ -2045,6 +2045,7 @@ export default function App() {
         animate={{ x: 0 }}
         exit={{ x: '100%' }}
         transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+        onClick={(e) => e.stopPropagation()}
         className="fixed top-0 right-0 h-full w-full sm:w-[420px] bg-white border-l border-[#d4e8da] z-50 shadow-2xl p-6 sm:p-8 overflow-y-auto"
       >
         <div className="flex justify-between items-center mb-8">
