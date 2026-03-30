@@ -44,6 +44,7 @@ interface AsanaSubtask {
   custom_fields: Array<{
     gid: string;
     display_value: string | null;
+    enum_value: { name: string } | null;
     date_value: { date: string; date_time: string | null } | null;
   }>;
 }
