@@ -1983,21 +1983,38 @@ export default function App() {
     const [arr, setArr] = useState('');
     const [isPoc, setIsPoc] = useState(false);
 
-    const [sa1, setSa1] = useState(sasSortedByCapacity[0]?.name || sas[0]?.name);
     const [date1, setDate1] = useState('');
 
     const derivedWeek1 = date1 ? getWeekString(new Date(date1 + 'T00:00:00')) : bookingWeek;
     const week1SlotsUsed = kickoffs.filter(k => k.week === derivedWeek1).length;
     const week1IsFull = week1SlotsUsed >= maxSlots;
 
+    // Count kickoffs each SA already has in the selected week
+    const saWeekCounts = kickoffs
+      .filter(k => k.week === derivedWeek1)
+      .reduce<Record<string, number>>((acc, k) => {
+        acc[k.saName] = (acc[k.saName] || 0) + 1;
+        return acc;
+      }, {});
+
+    // Auto-assign: lowest utilization SA with fewer than 2 kickoffs this week
+    const autoAssignedSA = sasSortedByCapacity.find(sa => (saWeekCounts[sa.name] || 0) < 2)?.name
+      || sasSortedByCapacity[0]?.name;
+
+    const [sa1, setSa1] = useState(autoAssignedSA);
+
+    // Re-derive SA when the selected week changes
+    useEffect(() => {
+      const best = sasSortedByCapacity.find(sa => (saWeekCounts[sa.name] || 0) < 2)?.name
+        || sasSortedByCapacity[0]?.name;
+      setSa1(best);
+    }, [derivedWeek1]);
+
+    const sa1WeekCount = saWeekCounts[sa1] || 0;
+    const sa1AtWeeklyLimit = sa1WeekCount >= 2;
+
     const today = new Date().toISOString().split('T')[0];
     const maxDate = new Date(Date.now() + 56 * 86400000).toISOString().split('T')[0];
-
-    const saOptions = sasSortedByCapacity.map((sa, idx) => ({
-      label: idx === 0 ? `${sa.name} — Recommended` : sa.name,
-      value: sa.name,
-      badge: <CapacityBadge pct={sa.utilizationPct} />
-    }));
 
     const handleSubmit = () => {
       handleAddKickoff({
@@ -2037,7 +2054,7 @@ export default function App() {
       return () => document.removeEventListener('mousedown', handler);
     }, []);
 
-    const canSubmit = customerName && aeName && date1 && selectedUseCases.length > 0 && !week1IsFull;
+    const canSubmit = customerName && aeName && date1 && selectedUseCases.length > 0 && !week1IsFull && !sa1AtWeeklyLimit;
 
     return (
       <motion.div
@@ -2185,12 +2202,18 @@ export default function App() {
           {/* SA (auto-assigned, not editable) */}
           <div className="space-y-2">
             <label className="mono-label text-[#676c79]">SA</label>
-            <div className="w-full p-3 border border-[#d4e8da] bg-[#F8FFFA] text-sm font-sans">
+            <div className={`w-full p-3 border bg-[#F8FFFA] text-sm font-sans ${sa1AtWeeklyLimit ? 'border-red-300' : 'border-[#d4e8da]'}`}>
               {sa1 || 'Unassigned'}
             </div>
-            <p className="text-xs text-[#008c44] flex items-center gap-1">
-              <CheckCircle2 size={12} /> Auto-assigned — lowest utilization ({sasSortedByCapacity[0]?.utilizationPct ?? 0}%)
-            </p>
+            {sa1AtWeeklyLimit ? (
+              <p className="text-xs text-red-500 flex items-center gap-1">
+                <AlertCircle size={12} /> {sa1} already has 2 kickoffs this week — no SAs available under the limit
+              </p>
+            ) : (
+              <p className="text-xs text-[#008c44] flex items-center gap-1">
+                <CheckCircle2 size={12} /> Auto-assigned — {sa1WeekCount}/2 kickoffs this week, lowest utilization ({sasSortedByCapacity.find(s => s.name === sa1)?.utilizationPct ?? 0}%)
+              </p>
+            )}
           </div>
 
           {/* SA Lead */}
