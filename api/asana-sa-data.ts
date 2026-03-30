@@ -222,26 +222,26 @@ export default async function handler(req: any, res: any) {
 
         const month = getMonth(kickoffDate, now);
 
-        // Include use case even if no date (month will be null)
-        if (month || !kickoffDate) {
-          // Initialize map for this assignee if needed
-          if (!saMap[useAssignee]) {
-            saMap[useAssignee] = { useCases: [], clients: [], customerStatus: {} };
-          }
-          if (!saMap[useAssignee].clients.includes(customer)) {
-            saMap[useAssignee].clients.push(customer);
-          }
-          saMap[useAssignee].customerStatus[customer] = subtaskCustomerStatus || customerStatus;
-
-          saMap[useAssignee].useCases.push({
-            customer,
-            name: sub.name,
-            month,
-            hours: month ? getHoursForMonth(month) : 0,
-            customerStatus: subtaskCustomerStatus || customerStatus, // Use subtask status if available, fallback to task status
-          });
-          hasValidUseCase = true;
+        // Always include the subtask as a use case — month/hours are used only for
+        // capacity math and will be null/0 for expired or future-dated kickoffs.
+        // Previously this gated on `if (month || !kickoffDate)`, which silently
+        // dropped 90+ day old subtasks and caused clients to show "(No use cases)".
+        if (!saMap[useAssignee]) {
+          saMap[useAssignee] = { useCases: [], clients: [], customerStatus: {} };
         }
+        if (!saMap[useAssignee].clients.includes(customer)) {
+          saMap[useAssignee].clients.push(customer);
+        }
+        saMap[useAssignee].customerStatus[customer] = subtaskCustomerStatus || customerStatus;
+
+        saMap[useAssignee].useCases.push({
+          customer,
+          name: sub.name,
+          month,
+          hours: month ? getHoursForMonth(month) : 0,
+          customerStatus: subtaskCustomerStatus || customerStatus,
+        });
+        hasValidUseCase = true;
       }
 
       // If no valid use cases found, add a placeholder so customer still shows up
