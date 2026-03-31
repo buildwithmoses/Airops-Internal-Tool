@@ -1989,29 +1989,30 @@ export default function App() {
     const week1SlotsUsed = kickoffs.filter(k => k.week === derivedWeek1).length;
     const week1IsFull = week1SlotsUsed >= maxSlots;
 
-    // Count kickoffs each SA already has in the selected week
-    const saWeekCounts = kickoffs
-      .filter(k => k.week === derivedWeek1)
-      .reduce<Record<string, number>>((acc, k) => {
-        acc[k.saName] = (acc[k.saName] || 0) + 1;
-        return acc;
-      }, {});
+    // Count ALL kickoffs per SA across all weeks (includes ones not yet in Asana)
+    const saAllCounts = kickoffs.reduce<Record<string, number>>((acc, k) => {
+      acc[k.saName] = (acc[k.saName] || 0) + 1;
+      return acc;
+    }, {});
 
-    // Auto-assign: lowest utilization SA with fewer than 2 kickoffs this week
-    const autoAssignedSA = sasSortedByCapacity.find(sa => (saWeekCounts[sa.name] || 0) < 2)?.name
+    // Auto-assign: lowest utilization SA with fewer than 2 total kickoffs
+    const autoAssignedSA = sasSortedByCapacity.find(sa => (saAllCounts[sa.name] || 0) < 2)?.name
       || sasSortedByCapacity[0]?.name;
 
     const [sa1, setSa1] = useState(autoAssignedSA);
 
-    // Re-derive SA when the selected week changes
+    // Re-derive SA only on first date selection (don't override manual picks)
+    const [userPickedSA, setUserPickedSA] = useState(false);
     useEffect(() => {
-      const best = sasSortedByCapacity.find(sa => (saWeekCounts[sa.name] || 0) < 2)?.name
-        || sasSortedByCapacity[0]?.name;
-      setSa1(best);
+      if (!userPickedSA) {
+        const best = sasSortedByCapacity.find(sa => (saAllCounts[sa.name] || 0) < 2)?.name
+          || sasSortedByCapacity[0]?.name;
+        setSa1(best);
+      }
     }, [derivedWeek1]);
 
-    const sa1WeekCount = saWeekCounts[sa1] || 0;
-    const sa1AtWeeklyLimit = sa1WeekCount >= 2;
+    const sa1TotalCount = saAllCounts[sa1] || 0;
+    const sa1AtLimit = sa1TotalCount >= 2;
 
     const today = new Date().toISOString().split('T')[0];
     const maxDate = new Date(Date.now() + 56 * 86400000).toISOString().split('T')[0];
@@ -2054,7 +2055,7 @@ export default function App() {
       return () => document.removeEventListener('mousedown', handler);
     }, []);
 
-    const canSubmit = customerName && aeName && date1 && selectedUseCases.length > 0 && !week1IsFull && !sa1AtWeeklyLimit;
+    const canSubmit = customerName && aeName && date1 && selectedUseCases.length > 0 && !week1IsFull && !sa1AtLimit;
 
     return (
       <motion.div
@@ -2199,19 +2200,31 @@ export default function App() {
             />
           </div>
 
-          {/* SA (auto-assigned, not editable) */}
+          {/* SA — auto-assigned but overridable */}
           <div className="space-y-2">
             <label className="mono-label text-[#676c79]">SA</label>
-            <div className={`w-full p-3 border bg-[#F8FFFA] text-sm font-sans ${sa1AtWeeklyLimit ? 'border-red-300' : 'border-[#d4e8da]'}`}>
-              {sa1 || 'Unassigned'}
-            </div>
-            {sa1AtWeeklyLimit ? (
+            <select
+              value={sa1}
+              onChange={(e) => { setSa1(e.target.value); setUserPickedSA(true); }}
+              className={`w-full p-3 border outline-none bg-white text-sm font-sans ${sa1AtLimit ? 'border-red-300' : 'border-[#d4e8da] focus:border-[#008c44]'}`}
+            >
+              {sasSortedByCapacity.map(sa => {
+                const count = saAllCounts[sa.name] || 0;
+                const atLimit = count >= 2;
+                return (
+                  <option key={sa.name} value={sa.name}>
+                    {sa.name} — {count} kickoff{count !== 1 ? 's' : ''}{atLimit ? ' ⚠️ at limit' : ''} ({sa.utilizationPct}% util)
+                  </option>
+                );
+              })}
+            </select>
+            {sa1AtLimit ? (
               <p className="text-xs text-red-500 flex items-center gap-1">
-                <AlertCircle size={12} /> {sa1} already has 2 kickoffs this week — no SAs available under the limit
+                <AlertCircle size={12} /> {sa1} already has 2 kickoffs — pick someone else
               </p>
             ) : (
               <p className="text-xs text-[#008c44] flex items-center gap-1">
-                <CheckCircle2 size={12} /> Auto-assigned — {sa1WeekCount}/2 kickoffs this week, lowest utilization ({sasSortedByCapacity.find(s => s.name === sa1)?.utilizationPct ?? 0}%)
+                <CheckCircle2 size={12} /> {userPickedSA ? 'Manually selected' : 'Auto-assigned'} — {sa1TotalCount}/2 kickoffs, {sasSortedByCapacity.find(s => s.name === sa1)?.utilizationPct ?? 0}% utilization
               </p>
             )}
           </div>
@@ -2368,7 +2381,15 @@ export default function App() {
             </div>
             <div className="space-y-1">
               <label className="mono-label text-[#a5aab6]">ASSIGNED SA</label>
-              <p className="text-sm font-medium">{selectedKickoff.saName}</p>
+              <select
+                value={selectedKickoff.saName}
+                onChange={(e) => handleUpdateKickoff(selectedKickoff.id, { saName: e.target.value })}
+                className="w-full p-2 border border-[#d4e8da] focus:border-[#008c44] outline-none bg-white text-sm font-sans"
+              >
+                {Object.keys(SA_POD_MAP).map(name => (
+                  <option key={name} value={name}>{name}</option>
+                ))}
+              </select>
             </div>
             <div className="space-y-1">
               <label className="mono-label text-[#a5aab6]">SA LEAD</label>
