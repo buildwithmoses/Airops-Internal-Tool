@@ -168,6 +168,9 @@ const SA_EMAIL_MAP: Record<string, string> = {
 
 const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 80);
 
+// SAs excluded from kickoff assignment (e.g. pod leads not taking new kickoffs)
+const SA_ASSIGNMENT_EXCLUDED = new Set(["Melanie Dell'Olio"]);
+
 const STANDARD_TASKS = [
   "AEO Workspace ID - UPGRADE",
   "Set Tasks in Admin",
@@ -2208,7 +2211,7 @@ export default function App() {
               onChange={(e) => { setSa1(e.target.value); setUserPickedSA(true); }}
               className={`w-full p-3 border outline-none bg-white text-sm font-sans ${sa1AtLimit ? 'border-red-300' : 'border-[#d4e8da] focus:border-[#008c44]'}`}
             >
-              {sasSortedByCapacity.map(sa => {
+              {sasSortedByCapacity.filter(sa => !SA_ASSIGNMENT_EXCLUDED.has(sa.name)).map(sa => {
                 const count = saAllCounts[sa.name] || 0;
                 const atLimit = count >= 2;
                 return (
@@ -2386,7 +2389,7 @@ export default function App() {
                 onChange={(e) => handleUpdateKickoff(selectedKickoff.id, { saName: e.target.value })}
                 className="w-full p-2 border border-[#d4e8da] focus:border-[#008c44] outline-none bg-white text-sm font-sans"
               >
-                {Object.keys(SA_POD_MAP).map(name => (
+                {Object.keys(SA_POD_MAP).filter(name => !SA_ASSIGNMENT_EXCLUDED.has(name)).map(name => (
                   <option key={name} value={name}>{name}</option>
                 ))}
               </select>
