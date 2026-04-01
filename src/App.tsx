@@ -664,6 +664,7 @@ export default function App() {
   const [hoursM1, setHoursM1] = useState(35);
   const [hoursM2, setHoursM2] = useState(25);
   const [hoursM3, setHoursM3] = useState(10);
+  const [capacityHours, setCapacityHours] = useState(128);
   const [showWelcome, setShowWelcome] = useState(false);
   const [hubspotDeals, setHubspotDeals] = useState<HubSpotDeal[]>([]);
   const [hubspotAEs, setHubspotAEs] = useState<HubSpotAE[]>([]);
@@ -718,6 +719,7 @@ export default function App() {
         if (typeof json.hoursM1 === 'number') setHoursM1(json.hoursM1);
         if (typeof json.hoursM2 === 'number') setHoursM2(json.hoursM2);
         if (typeof json.hoursM3 === 'number') setHoursM3(json.hoursM3);
+        if (typeof json.capacityHours === 'number') setCapacityHours(json.capacityHours);
       })
       .catch(() => {});
   }, [authState]);
@@ -1143,7 +1145,7 @@ export default function App() {
       if (uc.month === 3) return sum + hoursM3;
       return sum;
     }, 0);
-    return { ...sa, totalHours, utilizationPct: Math.round((totalHours / sa.capacity) * 100) };
+    return { ...sa, totalHours, capacity: capacityHours, utilizationPct: Math.round((totalHours / capacityHours) * 100) };
   });
 
   const sasSortedByCapacity = [...sasWithRecalcHours].sort((a, b) => a.totalHours - b.totalHours);
@@ -1702,7 +1704,7 @@ export default function App() {
   const totalM2 = capacityFilteredSAs.reduce((s, sa) => s + sa.monthBreakdown.m2, 0);
   const totalM3 = capacityFilteredSAs.reduce((s, sa) => s + sa.monthBreakdown.m3, 0);
   const totalActHrs = capacityFilteredSAs.reduce((s, sa) => s + sa.totalHours, 0);
-  const totalCapacity = capacityFilteredSAs.length * 128;
+  const totalCapacity = capacityFilteredSAs.length * capacityHours;
   const totalUCs = totalM1 + totalM2 + totalM3;
 
   const currentMonth = new Date().toLocaleString('en-US', { month: 'long' });
@@ -1833,7 +1835,7 @@ export default function App() {
         <div className="flex items-center gap-1.5"><span className="w-3 h-3 bg-[#66d99a] inline-block" /> MONTH 1 (35H)</div>
         <div className="flex items-center gap-1.5"><span className="w-3 h-3 bg-[#00b85c] inline-block" /> MONTH 2 (25H)</div>
         <div className="flex items-center gap-1.5"><span className="w-3 h-3 bg-[#008c44] inline-block" /> MONTH 3 (10H)</div>
-        <div className="flex items-center gap-1.5"><span className="w-6 border-t-2 border-[#676c79] inline-block" /> 128H CAPACITY</div>
+        <div className="flex items-center gap-1.5"><span className="w-6 border-t-2 border-[#676c79] inline-block" /> {capacityHours}H CAPACITY</div>
       </div>
 
       {/* SA Rows */}
@@ -1845,14 +1847,14 @@ export default function App() {
           const isExpanded = expandedSA === sa.name;
 
           // Bar widths as percentage of max (use 200h as max bar width reference, or capacity * 1.2)
-          const maxBarHours = Math.max(totalCapacity / capacityFilteredSAs.length * 1.2, sa.totalHours * 1.05, 160);
+          const maxBarHours = Math.max(capacityHours * 1.2, sa.totalHours * 1.05, capacityHours);
           const m1Hours = sa.monthBreakdown.m1 * 35;
           const m2Hours = sa.monthBreakdown.m2 * 25;
           const m3Hours = sa.monthBreakdown.m3 * 10;
           const m1Pct = (m1Hours / maxBarHours) * 100;
           const m2Pct = (m2Hours / maxBarHours) * 100;
           const m3Pct = (m3Hours / maxBarHours) * 100;
-          const capacityLinePct = (128 / maxBarHours) * 100;
+          const capacityLinePct = (capacityHours / maxBarHours) * 100;
 
           return (
             <div key={sa.name} className="border-b border-[#ecedef] last:border-b-0">
@@ -1884,7 +1886,7 @@ export default function App() {
                         {sa.monthBreakdown.m3} M3
                       </span>
                     )}
-                    <span className="text-xs font-mono text-[#676c79]">{sa.totalHours}H/128H</span>
+                    <span className="text-xs font-mono text-[#676c79]">{sa.totalHours}H/{capacityHours}H</span>
                     <CapacityBadge pct={sa.utilizationPct} />
                     <button
                       onClick={() => setExpandedSA(isExpanded ? null : sa.name)}
@@ -1974,7 +1976,7 @@ export default function App() {
       <div className="flex items-start gap-3 bg-[#f8faf9] border border-[#d4e8da] p-4">
         <span className="mono-label text-[10px] px-2 py-1 bg-[#000d05] text-white shrink-0">ASSUMPTIONS</span>
         <p className="text-xs text-[#676c79]">
-          160 hrs/person/mo — 80% util = 128 effective — M1: 35h — M2: 25h — M3: 10h — Capacity counted per use case (subtask)
+          {capacityHours} hrs effective capacity per SA — M1: {hoursM1}h — M2: {hoursM2}h — M3: {hoursM3}h — Capacity counted per use case (subtask)
         </p>
       </div>
     </div>
@@ -1994,6 +1996,17 @@ export default function App() {
             type="number"
             value={maxSlots}
             onChange={(e) => setMaxSlots(parseInt(e.target.value))}
+            className="w-full p-3 border border-[#d4e8da] focus:border-[#008c44] outline-none"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <label className="mono-label text-[#676c79]">SA Capacity (Hours per SA)</label>
+          <p className="text-xs text-[#676c79]">Total effective hours available per SA. Default: 128 (160 hrs/mo × 80% util).</p>
+          <input
+            type="number"
+            value={capacityHours}
+            onChange={(e) => setCapacityHours(parseInt(e.target.value) || 128)}
             className="w-full p-3 border border-[#d4e8da] focus:border-[#008c44] outline-none"
           />
         </div>
@@ -2037,7 +2050,7 @@ export default function App() {
             fetch('/api/trigger-deck?action=save-settings', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ maxSlots, hoursM1, hoursM2, hoursM3 }),
+              body: JSON.stringify({ maxSlots, hoursM1, hoursM2, hoursM3, capacityHours }),
             })
               .then(() => {
                 setSettingsSaved(true);

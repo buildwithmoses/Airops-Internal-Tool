@@ -417,6 +417,7 @@ export default async function handler(req: any, res: any) {
         hoursM1: settings.hoursM1 ?? 35,
         hoursM2: settings.hoursM2 ?? 25,
         hoursM3: settings.hoursM3 ?? 10,
+        capacityHours: settings.capacityHours ?? 128,
       });
     }
 
@@ -430,6 +431,7 @@ export default async function handler(req: any, res: any) {
         hoursM1: payload.hoursM1 ?? 35,
         hoursM2: payload.hoursM2 ?? 25,
         hoursM3: payload.hoursM3 ?? 10,
+        capacityHours: payload.capacityHours ?? 128,
       }));
       return sendJson(res, 200, { ok: true });
     }
