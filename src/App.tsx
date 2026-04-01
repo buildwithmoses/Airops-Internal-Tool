@@ -1811,17 +1811,17 @@ export default function App() {
         <div className="p-5 border-r border-[#d4e8da]">
           <p className="mono-label text-[#676c79] text-[10px] mb-2">MONTH 1 UCS</p>
           <p className="text-3xl font-sans text-[#008c44] font-bold">{totalM1}</p>
-          <p className="text-xs text-[#676c79] mt-1">{totalM1 * 35}h @ 35h each</p>
+          <p className="text-xs text-[#676c79] mt-1">{totalM1 * hoursM1}h @ {hoursM1}h each</p>
         </div>
         <div className="p-5 border-r border-[#d4e8da]">
           <p className="mono-label text-[#676c79] text-[10px] mb-2">MONTH 2 UCS</p>
           <p className="text-3xl font-sans text-[#008c44] font-bold">{totalM2}</p>
-          <p className="text-xs text-[#676c79] mt-1">{totalM2 * 25}h @ 25h each</p>
+          <p className="text-xs text-[#676c79] mt-1">{totalM2 * hoursM2}h @ {hoursM2}h each</p>
         </div>
         <div className="p-5 border-r border-[#d4e8da]">
           <p className="mono-label text-[#676c79] text-[10px] mb-2">MONTH 3 UCS</p>
           <p className="text-3xl font-sans text-[#008c44] font-bold">{totalM3}</p>
-          <p className="text-xs text-[#676c79] mt-1">{totalM3 * 10}h @ 10h each</p>
+          <p className="text-xs text-[#676c79] mt-1">{totalM3 * hoursM3}h @ {hoursM3}h each</p>
         </div>
         <div className="p-5">
           <p className="mono-label text-[#676c79] text-[10px] mb-2">TOTAL ACT. HRS</p>
@@ -1832,9 +1832,9 @@ export default function App() {
 
       {/* Legend */}
       <div className="flex items-center gap-6 text-xs text-[#676c79] mono-label">
-        <div className="flex items-center gap-1.5"><span className="w-3 h-3 bg-[#66d99a] inline-block" /> MONTH 1 (35H)</div>
-        <div className="flex items-center gap-1.5"><span className="w-3 h-3 bg-[#00b85c] inline-block" /> MONTH 2 (25H)</div>
-        <div className="flex items-center gap-1.5"><span className="w-3 h-3 bg-[#008c44] inline-block" /> MONTH 3 (10H)</div>
+        <div className="flex items-center gap-1.5"><span className="w-3 h-3 bg-[#66d99a] inline-block" /> MONTH 1 ({hoursM1}H)</div>
+        <div className="flex items-center gap-1.5"><span className="w-3 h-3 bg-[#00b85c] inline-block" /> MONTH 2 ({hoursM2}H)</div>
+        <div className="flex items-center gap-1.5"><span className="w-3 h-3 bg-[#008c44] inline-block" /> MONTH 3 ({hoursM3}H)</div>
         <div className="flex items-center gap-1.5"><span className="w-6 border-t-2 border-[#676c79] inline-block" /> {capacityHours}H CAPACITY</div>
       </div>
 
