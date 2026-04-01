@@ -189,7 +189,7 @@ const INITIAL_SAS: SA[] = [
   emptySA("Aaron Lit"), emptySA("AJ Diaz"), emptySA("Andreea Volzer"), emptySA("Anton O'Malley"),
   emptySA("Arnett Shen"), emptySA("Diana Shiling"), emptySA("Elmi Abdullahi"), emptySA("Henry Moses Jr"),
   emptySA("Henry Young"), emptySA("Jeremy Kao"), emptySA("Joel Fazecas"), emptySA("John Sellers"),
-  emptySA("Melanie Dell'Olio"), emptySA("Palmer Jones"), emptySA("Richard Li"), emptySA("Shahbaz Mahmood"),
+  emptySA("Palmer Jones"), emptySA("Richard Li"), emptySA("Shahbaz Mahmood"),
   emptySA("William Reed"), emptySA("Zoe Febrero"),
 ];
 
@@ -775,7 +775,7 @@ export default function App() {
       .then(res => res.json())
       .then(json => {
         if (json.data && json.data.length > 0) {
-          const saData: SA[] = json.data.map((sa: any) => ({
+          const saData: SA[] = json.data.filter((sa: any) => !SA_ASSIGNMENT_EXCLUDED.has(sa.name)).map((sa: any) => ({
             name: sa.name,
             useCases: sa.useCases || [],
             totalHours: sa.totalHours || 0,
