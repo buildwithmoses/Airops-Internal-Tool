@@ -1654,11 +1654,16 @@ export default function App() {
   const [expandedSA, setExpandedSA] = useState<string | null>(null);
   const [expandedCustomers, setExpandedCustomers] = useState<Set<string>>(new Set());
 
-  const pods = [...new Set(Object.values(SA_POD_MAP).map(v => v.pod))];
+  const pods = [...new Set(
+    Object.entries(SA_POD_MAP)
+      .filter(([name]) => !SA_ASSIGNMENT_EXCLUDED.has(name))
+      .map(([, v]) => v.pod)
+  )];
 
-  const capacityFilteredSAs = capacityPodFilter === 'all'
+  const capacityFilteredSAs = (capacityPodFilter === 'all'
     ? sas
-    : sas.filter(sa => SA_POD_MAP[sa.name]?.pod === capacityPodFilter);
+    : sas.filter(sa => SA_POD_MAP[sa.name]?.pod === capacityPodFilter)
+  ).filter(sa => !SA_ASSIGNMENT_EXCLUDED.has(sa.name));
 
   const capacitySorted = [...capacityFilteredSAs].sort((a, b) => b.utilizationPct - a.utilizationPct);
 
