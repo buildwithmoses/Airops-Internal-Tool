@@ -660,10 +660,10 @@ export default function App() {
   const [sas, setSas] = useState<SA[]>(INITIAL_SAS);
   const [saLoadingState, setSaLoadingState] = useState<'idle' | 'loading' | 'loaded' | 'error'>('idle');
   const [gcalConnected, setGcalConnected] = useState(false);
-  const [maxSlots, setMaxSlots] = useState(10);
-  const [hoursM1, setHoursM1] = useState(35);
-  const [hoursM2, setHoursM2] = useState(25);
-  const [hoursM3, setHoursM3] = useState(10);
+  const [maxSlots, setMaxSlots] = useState(() => parseInt(localStorage.getItem('setting-maxSlots') || '10'));
+  const [hoursM1, setHoursM1] = useState(() => parseInt(localStorage.getItem('setting-hoursM1') || '35'));
+  const [hoursM2, setHoursM2] = useState(() => parseInt(localStorage.getItem('setting-hoursM2') || '25'));
+  const [hoursM3, setHoursM3] = useState(() => parseInt(localStorage.getItem('setting-hoursM3') || '10'));
   const [showWelcome, setShowWelcome] = useState(false);
   const [hubspotDeals, setHubspotDeals] = useState<HubSpotDeal[]>([]);
   const [hubspotAEs, setHubspotAEs] = useState<HubSpotAE[]>([]);
@@ -2017,7 +2017,15 @@ export default function App() {
           </div>
         </div>
 
-        <button className="bg-[#000d05] text-white px-8 py-3 font-sans font-medium hover:opacity-90 transition-opacity">
+        <button
+          onClick={() => {
+            localStorage.setItem('setting-maxSlots', String(maxSlots));
+            localStorage.setItem('setting-hoursM1', String(hoursM1));
+            localStorage.setItem('setting-hoursM2', String(hoursM2));
+            localStorage.setItem('setting-hoursM3', String(hoursM3));
+          }}
+          className="bg-[#000d05] text-white px-8 py-3 font-sans font-medium hover:opacity-90 transition-opacity"
+        >
           Save Changes
         </button>
       </div>
