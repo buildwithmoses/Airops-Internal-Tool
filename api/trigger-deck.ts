@@ -406,6 +406,34 @@ export default async function handler(req: any, res: any) {
       return sendJson(res, 200, { aes });
     }
 
+    // GET: Load team-wide settings
+    if (action === 'get-settings') {
+      if (req.method !== 'GET') return sendJson(res, 405, { error: 'Method not allowed' });
+      const redis = await getRedis();
+      const raw = await redis.get('hub:settings');
+      const settings = raw ? (typeof raw === 'string' ? JSON.parse(raw) : raw) : {};
+      return sendJson(res, 200, {
+        maxSlots: settings.maxSlots ?? 10,
+        hoursM1: settings.hoursM1 ?? 35,
+        hoursM2: settings.hoursM2 ?? 25,
+        hoursM3: settings.hoursM3 ?? 10,
+      });
+    }
+
+    // POST: Save team-wide settings
+    if (action === 'save-settings') {
+      if (req.method !== 'POST') return sendJson(res, 405, { error: 'Method not allowed' });
+      const payload = JSON.parse(await readBody(req));
+      const redis = await getRedis();
+      await redis.set('hub:settings', JSON.stringify({
+        maxSlots: payload.maxSlots ?? 10,
+        hoursM1: payload.hoursM1 ?? 35,
+        hoursM2: payload.hoursM2 ?? 25,
+        hoursM3: payload.hoursM3 ?? 10,
+      }));
+      return sendJson(res, 200, { ok: true });
+    }
+
     return sendJson(res, 400, { error: `Unknown action: ${action}` });
   } catch (err: any) {
     return sendJson(res, 500, { error: err.message });
