@@ -668,6 +668,7 @@ export default function App() {
   const [hubspotDeals, setHubspotDeals] = useState<HubSpotDeal[]>([]);
   const [hubspotAEs, setHubspotAEs] = useState<HubSpotAE[]>([]);
   const [excludedPeople, setExcludedPeople] = useState<string[]>([]);
+  const [settingsSaved, setSettingsSaved] = useState(false);
 
   // Detect /book/{id} URL for public booking page (no auth required)
   useEffect(() => {
@@ -2037,7 +2038,15 @@ export default function App() {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ maxSlots, hoursM1, hoursM2, hoursM3 }),
-            }).catch(() => {});
+            })
+              .then(() => {
+                setSettingsSaved(true);
+                setTimeout(() => setSettingsSaved(false), 3000);
+              })
+              .catch(() => {
+                setSettingsSaved(true);
+                setTimeout(() => setSettingsSaved(false), 3000);
+              });
           }}
           className="bg-[#000d05] text-white px-8 py-3 font-sans font-medium hover:opacity-90 transition-opacity"
         >
@@ -2770,6 +2779,14 @@ export default function App() {
 
   return (
     <div className="flex min-h-screen bg-white font-sans">
+      {/* Settings saved toast */}
+      {settingsSaved && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-[#000d05] text-white px-6 py-3 text-sm font-medium shadow-lg pointer-events-none"
+          style={{ animation: 'fadeInUp 0.2s ease' }}>
+          Settings saved
+        </div>
+      )}
+
       {/* Mobile Header */}
       <header className="md:hidden fixed top-0 left-0 right-0 z-30 bg-[#F8FFFA] border-b border-[#d4e8da] flex items-center justify-between px-4 py-3">
         <button onClick={() => setMobileSidebarOpen(true)} className="text-[#000d05] p-1">
