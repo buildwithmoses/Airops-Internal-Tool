@@ -661,6 +661,9 @@ export default function App() {
   const [saLoadingState, setSaLoadingState] = useState<'idle' | 'loading' | 'loaded' | 'error'>('idle');
   const [gcalConnected, setGcalConnected] = useState(false);
   const [maxSlots, setMaxSlots] = useState(10);
+  const [hoursM1, setHoursM1] = useState(35);
+  const [hoursM2, setHoursM2] = useState(25);
+  const [hoursM3, setHoursM3] = useState(10);
   const [showWelcome, setShowWelcome] = useState(false);
   const [hubspotDeals, setHubspotDeals] = useState<HubSpotDeal[]>([]);
   const [hubspotAEs, setHubspotAEs] = useState<HubSpotAE[]>([]);
@@ -1116,7 +1119,19 @@ export default function App() {
     }
   }, [selectedKickoff, agentForm]);
 
-  const sasSortedByCapacity = [...sas].sort((a, b) => a.totalHours - b.totalHours);
+  // Recalculate hours/utilization using the configurable M1/M2/M3 values from Settings
+  const sasWithRecalcHours = sas.map(sa => {
+    const nonPlaceholder = sa.useCases.filter(uc => !uc.isPlaceholder);
+    const totalHours = nonPlaceholder.reduce((sum, uc) => {
+      if (uc.month === 1) return sum + hoursM1;
+      if (uc.month === 2) return sum + hoursM2;
+      if (uc.month === 3) return sum + hoursM3;
+      return sum;
+    }, 0);
+    return { ...sa, totalHours, utilizationPct: Math.round((totalHours / sa.capacity) * 100) };
+  });
+
+  const sasSortedByCapacity = [...sasWithRecalcHours].sort((a, b) => a.totalHours - b.totalHours);
 
   // Debounced SA notes save
   const saNotesTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
@@ -1960,12 +1975,46 @@ export default function App() {
       <div className="space-y-6">
         <div className="space-y-2">
           <label className="mono-label text-[#676c79]">Max Kickoffs Per Week</label>
-          <input 
+          <input
             type="number"
             value={maxSlots}
             onChange={(e) => setMaxSlots(parseInt(e.target.value))}
             className="w-full p-3 border border-[#d4e8da] focus:border-[#008c44] outline-none"
           />
+        </div>
+
+        <div className="space-y-3">
+          <label className="mono-label text-[#676c79]">SA Capacity Hours by Month</label>
+          <p className="text-xs text-[#676c79]">Hours assigned per use case depending on how many months since kickoff.</p>
+          <div className="grid grid-cols-3 gap-4">
+            <div className="space-y-1">
+              <label className="text-xs text-[#676c79] font-sans">Month 1 (0–30 days)</label>
+              <input
+                type="number"
+                value={hoursM1}
+                onChange={(e) => setHoursM1(parseInt(e.target.value) || 0)}
+                className="w-full p-3 border border-[#d4e8da] focus:border-[#008c44] outline-none text-sm"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-[#676c79] font-sans">Month 2 (31–60 days)</label>
+              <input
+                type="number"
+                value={hoursM2}
+                onChange={(e) => setHoursM2(parseInt(e.target.value) || 0)}
+                className="w-full p-3 border border-[#d4e8da] focus:border-[#008c44] outline-none text-sm"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-[#676c79] font-sans">Month 3 (61–90 days)</label>
+              <input
+                type="number"
+                value={hoursM3}
+                onChange={(e) => setHoursM3(parseInt(e.target.value) || 0)}
+                className="w-full p-3 border border-[#d4e8da] focus:border-[#008c44] outline-none text-sm"
+              />
+            </div>
+          </div>
         </div>
 
         <button className="bg-[#000d05] text-white px-8 py-3 font-sans font-medium hover:opacity-90 transition-opacity">
@@ -2218,22 +2267,21 @@ export default function App() {
               className={`w-full p-3 border outline-none bg-white text-sm font-sans ${sa1AtLimit ? 'border-red-300' : 'border-[#d4e8da] focus:border-[#008c44]'}`}
             >
               {sasSortedByCapacity.filter(sa => !SA_ASSIGNMENT_EXCLUDED.has(sa.name)).map(sa => {
-                const count = saAllCounts[sa.name] || 0;
-                const atLimit = count >= 2;
+                const atLimit = (saAllCounts[sa.name] || 0) >= 2;
                 return (
                   <option key={sa.name} value={sa.name}>
-                    {sa.name} — {count} kickoff{count !== 1 ? 's' : ''}{atLimit ? ' ⚠️ at limit' : ''} ({sa.utilizationPct}% util)
+                    {sa.name}{atLimit ? ' ⚠️ at limit' : ''} ({sa.utilizationPct}% util)
                   </option>
                 );
               })}
             </select>
             {sa1AtLimit ? (
               <p className="text-xs text-red-500 flex items-center gap-1">
-                <AlertCircle size={12} /> {sa1} already has 2 kickoffs — pick someone else
+                <AlertCircle size={12} /> {sa1} is at the kickoff limit — pick someone else
               </p>
             ) : (
               <p className="text-xs text-[#008c44] flex items-center gap-1">
-                <CheckCircle2 size={12} /> {userPickedSA ? 'Manually selected' : 'Auto-assigned'} — {sa1TotalCount}/2 kickoffs, {sasSortedByCapacity.find(s => s.name === sa1)?.utilizationPct ?? 0}% utilization
+                <CheckCircle2 size={12} /> {userPickedSA ? 'Manually selected' : 'Auto-assigned'} — {sasSortedByCapacity.find(s => s.name === sa1)?.utilizationPct ?? 0}% utilization
               </p>
             )}
           </div>
