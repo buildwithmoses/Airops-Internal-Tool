@@ -670,6 +670,8 @@ export default function App() {
   const [hubspotAEs, setHubspotAEs] = useState<HubSpotAE[]>([]);
   const [excludedPeople, setExcludedPeople] = useState<string[]>([]);
   const [settingsSaved, setSettingsSaved] = useState(false);
+  const [dragKickoffId, setDragKickoffId] = useState<string | null>(null);
+  const [dragOverWeek, setDragOverWeek] = useState<string | null>(null);
 
   // Detect /book/{id} URL for public booking page (no auth required)
   useEffect(() => {
@@ -1171,6 +1173,15 @@ export default function App() {
     }).catch(() => {});
   };
 
+  const handleMoveKickoff = (kickoffId: string, newWeek: string) => {
+    setKickoffs(prev => prev.map(k => {
+      if (k.id !== kickoffId || k.week === newWeek) return k;
+      const updated = { ...k, week: newWeek };
+      saveKickoffToRedis(updated);
+      return updated;
+    }));
+  };
+
   const handleToggleTask = (kickoffId: string, taskIndex: number) => {
     setKickoffs(prev => prev.map(k => {
       if (k.id === kickoffId) {
@@ -1384,7 +1395,18 @@ export default function App() {
             const isPast = week < currentWeek;
 
             return (
-              <div key={week} className="border border-[#d4e8da] bg-white p-4 md:p-6 space-y-4 md:space-y-6">
+              <div
+                key={week}
+                className={`border bg-white p-4 md:p-6 space-y-4 md:space-y-6 transition-colors ${dragOverWeek === week ? 'border-[#008c44] bg-[#f0faf4]' : 'border-[#d4e8da]'}`}
+                onDragOver={(e) => { e.preventDefault(); setDragOverWeek(week); }}
+                onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOverWeek(null); }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  if (dragKickoffId) handleMoveKickoff(dragKickoffId, week);
+                  setDragKickoffId(null);
+                  setDragOverWeek(null);
+                }}
+              >
                 <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3">
                   <div className="flex items-center gap-4 md:gap-6">
                     <div className="min-w-[140px] md:min-w-[200px]">
@@ -1421,8 +1443,11 @@ export default function App() {
                   {weekKickoffs.map(k => (
                     <div
                       key={k.id}
+                      draggable
+                      onDragStart={(e) => { setDragKickoffId(k.id); e.dataTransfer.effectAllowed = 'move'; }}
+                      onDragEnd={() => { setDragKickoffId(null); setDragOverWeek(null); }}
                       onClick={() => setSelectedKickoffId(k.id)}
-                      className="border border-[#ecedef] p-4 hover:bg-[#f0faf4] cursor-pointer transition-colors group"
+                      className={`border border-[#ecedef] p-4 hover:bg-[#f0faf4] cursor-grab active:cursor-grabbing transition-colors group ${dragKickoffId === k.id ? 'opacity-40' : ''}`}
                     >
                       <div className="flex justify-between items-start mb-3">
                         <div>
