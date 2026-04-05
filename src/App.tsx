@@ -2346,7 +2346,7 @@ export default function App() {
               onChange={(e) => { setSa1(e.target.value); setUserPickedSA(true); }}
               className={`w-full p-3 border outline-none bg-white text-sm font-sans ${sa1AtLimit ? 'border-red-300' : 'border-[#d4e8da] focus:border-[#008c44]'}`}
             >
-              {sasSortedByCapacity.filter(sa => !SA_ASSIGNMENT_EXCLUDED.has(sa.name)).map(sa => {
+              {sasSortedByCapacity.filter(sa => !SA_ASSIGNMENT_EXCLUDED.has(sa.name) && (sa.name !== 'Charles Ellenburg' || selectedUseCases.includes('Offsite'))).map(sa => {
                 const atLimit = (saAllCounts[sa.name] || 0) >= 2;
                 return (
                   <option key={sa.name} value={sa.name}>
