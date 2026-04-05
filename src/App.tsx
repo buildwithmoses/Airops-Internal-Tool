@@ -823,7 +823,10 @@ export default function App() {
                   if (notesJson.notes[sa.name]) sa.notes = notesJson.notes[sa.name];
                 });
               }
-              setSas(saData);
+              // Preserve any INITIAL_SAS entries not returned by Asana (e.g. Charles Ellenburg)
+              const asanaNames = new Set(saData.map((sa: any) => sa.name));
+              const extras = INITIAL_SAS.filter(sa => !asanaNames.has(sa.name));
+              setSas([...saData, ...extras]);
             })
             .catch(() => setSas(saData));
           setSaLoadingState('loaded');
