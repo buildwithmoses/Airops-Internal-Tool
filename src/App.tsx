@@ -140,6 +140,8 @@ const SA_POD_MAP: Record<string, { pod: string; lead: string }> = {
   "Arnett Shen": { pod: "Andreea's Pod", lead: "Andreea Volzer" },
   "Joel Fazecas": { pod: "Andreea's Pod", lead: "Andreea Volzer" },
   "Shahbaz Mahmood": { pod: "Andreea's Pod", lead: "Andreea Volzer" },
+  // Offsite
+  "Charles Ellenburg": { pod: "Offsite", lead: "Charles Ellenburg" },
 };
 
 const getSALead = (saName: string): string | null => SA_POD_MAP[saName]?.lead || null;
@@ -161,6 +163,7 @@ const SA_EMAIL_MAP: Record<string, string> = {
   "Melanie Dell'Olio": "melanie@airops.com",
   "Palmer Jones": "palmer@airops.com",
   "Richard Li": "richard@airops.com",
+  "Charles Ellenburg": "charles@airops.com",
   "Shahbaz Mahmood": "shahbaz@airops.com",
   "William Reed": "will@airops.com",
   "Zoe Febrero": "zoe@airops.com",
@@ -188,9 +191,9 @@ const emptySA = (name: string): SA => ({ name, useCases: [], totalHours: 0, mont
 
 const INITIAL_SAS: SA[] = [
   emptySA("Aaron Lit"), emptySA("AJ Diaz"), emptySA("Andreea Volzer"), emptySA("Anton O'Malley"),
-  emptySA("Arnett Shen"), emptySA("Diana Shiling"), emptySA("Elmi Abdullahi"), emptySA("Henry Moses Jr"),
-  emptySA("Henry Young"), emptySA("Jeremy Kao"), emptySA("Joel Fazecas"), emptySA("John Sellers"),
-  emptySA("Palmer Jones"), emptySA("Richard Li"), emptySA("Shahbaz Mahmood"),
+  emptySA("Arnett Shen"), emptySA("Charles Ellenburg"), emptySA("Diana Shiling"), emptySA("Elmi Abdullahi"),
+  emptySA("Henry Moses Jr"), emptySA("Henry Young"), emptySA("Jeremy Kao"), emptySA("Joel Fazecas"),
+  emptySA("John Sellers"), emptySA("Palmer Jones"), emptySA("Richard Li"), emptySA("Shahbaz Mahmood"),
   emptySA("William Reed"), emptySA("Zoe Febrero"),
 ];
 
@@ -2129,15 +2132,19 @@ export default function App() {
 
     const [sa1, setSa1] = useState(autoAssignedSA);
 
-    // Re-derive SA only on first date selection (don't override manual picks)
+    // Re-derive SA when date or use case changes (don't override manual picks)
     const [userPickedSA, setUserPickedSA] = useState(false);
     useEffect(() => {
       if (!userPickedSA) {
-        const best = sasSortedByCapacity.find(sa => (saAllCounts[sa.name] || 0) < 2)?.name
-          || sasSortedByCapacity[0]?.name;
-        setSa1(best);
+        if (selectedUseCases.includes('Offsite')) {
+          setSa1('Charles Ellenburg');
+        } else {
+          const best = sasSortedByCapacity.find(sa => (saAllCounts[sa.name] || 0) < 2)?.name
+            || sasSortedByCapacity[0]?.name;
+          setSa1(best);
+        }
       }
-    }, [derivedWeek1]);
+    }, [derivedWeek1, selectedUseCases]);
 
     const sa1TotalCount = saAllCounts[sa1] || 0;
     const sa1AtLimit = sa1TotalCount >= 2;
