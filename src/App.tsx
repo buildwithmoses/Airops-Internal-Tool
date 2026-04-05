@@ -2129,9 +2129,10 @@ export default function App() {
       return acc;
     }, {});
 
-    // Auto-assign: lowest utilization SA with fewer than 2 total kickoffs
-    const autoAssignedSA = sasSortedByCapacity.find(sa => (saAllCounts[sa.name] || 0) < 2)?.name
-      || sasSortedByCapacity[0]?.name;
+    // Auto-assign: lowest utilization SA with fewer than 2 total kickoffs (exclude Offsite-only SAs)
+    const assignableSAs = sasSortedByCapacity.filter(sa => sa.name !== 'Charles Ellenburg');
+    const autoAssignedSA = assignableSAs.find(sa => (saAllCounts[sa.name] || 0) < 2)?.name
+      || assignableSAs[0]?.name;
 
     const [sa1, setSa1] = useState(autoAssignedSA);
 
@@ -2142,8 +2143,8 @@ export default function App() {
         if (selectedUseCases.includes('Offsite')) {
           setSa1('Charles Ellenburg');
         } else {
-          const best = sasSortedByCapacity.find(sa => (saAllCounts[sa.name] || 0) < 2)?.name
-            || sasSortedByCapacity[0]?.name;
+          const best = assignableSAs.find(sa => (saAllCounts[sa.name] || 0) < 2)?.name
+            || assignableSAs[0]?.name;
           setSa1(best);
         }
       }
