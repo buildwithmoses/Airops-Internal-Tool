@@ -26,7 +26,8 @@ import {
   Trash2,
   Copy,
   Hash,
-  ChevronDown
+  ChevronDown,
+  GripVertical
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -1449,16 +1450,24 @@ export default function App() {
                   {weekKickoffs.map(k => (
                     <div
                       key={k.id}
-                      draggable
-                      onDragStart={(e) => { setDragKickoffId(k.id); e.dataTransfer.effectAllowed = 'move'; }}
-                      onDragEnd={() => { setDragKickoffId(null); setDragOverWeek(null); }}
                       onClick={() => setSelectedKickoffId(k.id)}
-                      className={`border border-[#ecedef] p-4 hover:bg-[#f0faf4] cursor-grab active:cursor-grabbing transition-colors group ${dragKickoffId === k.id ? 'opacity-40' : ''}`}
+                      className={`border border-[#ecedef] p-4 hover:bg-[#f0faf4] cursor-pointer transition-colors group ${dragKickoffId === k.id ? 'opacity-40' : ''}`}
                     >
                       <div className="flex justify-between items-start mb-3">
-                        <div>
-                          <h4 className="font-sans font-bold text-sm">{k.customerName}</h4>
-                          <p className="text-xs text-[#676c79]">{k.aeName}</p>
+                        <div className="flex items-start gap-2">
+                          <div
+                            draggable
+                            onDragStart={(e) => { e.stopPropagation(); setDragKickoffId(k.id); e.dataTransfer.effectAllowed = 'move'; }}
+                            onDragEnd={() => { setDragKickoffId(null); setDragOverWeek(null); }}
+                            onClick={(e) => e.stopPropagation()}
+                            className="mt-0.5 text-[#c0c8d0] hover:text-[#008c44] cursor-grab active:cursor-grabbing"
+                          >
+                            <GripVertical size={14} />
+                          </div>
+                          <div>
+                            <h4 className="font-sans font-bold text-sm">{k.customerName}</h4>
+                            <p className="text-xs text-[#676c79]">{k.aeName}</p>
+                          </div>
                         </div>
                         <StatusBadge status={k.status} />
                       </div>
