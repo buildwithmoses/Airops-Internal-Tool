@@ -2360,7 +2360,7 @@ export default function App() {
                 const atLimit = (saAllCounts[sa.name] || 0) >= 2;
                 return (
                   <option key={sa.name} value={sa.name}>
-                    {sa.name}{atLimit ? ' ⚠️ at limit' : ''} ({sa.utilizationPct}% util)
+                    {sa.name}{atLimit ? ' ⚠️ at limit' : ''}
                   </option>
                 );
               })}
@@ -2371,7 +2371,7 @@ export default function App() {
               </p>
             ) : (
               <p className="text-xs text-[#008c44] flex items-center gap-1">
-                <CheckCircle2 size={12} /> {userPickedSA ? 'Manually selected' : 'Auto-assigned'} — {sasSortedByCapacity.find(s => s.name === sa1)?.utilizationPct ?? 0}% utilization
+                <CheckCircle2 size={12} /> {userPickedSA ? 'Manually selected' : 'Auto-assigned'}
               </p>
             )}
           </div>
