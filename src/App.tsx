@@ -173,7 +173,7 @@ const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').repla
 
 // SAs excluded from kickoff assignment (e.g. pod leads not taking new kickoffs)
 // Note: Asana uses a curly apostrophe (') in her name — both variants included
-const SA_ASSIGNMENT_EXCLUDED = new Set(["Melanie Dell'Olio", "Melanie Dell\u2019Olio"]);
+const SA_ASSIGNMENT_EXCLUDED = new Set(["Melanie Dell'Olio", "Melanie Dell\u2019Olio", "Richard Li"]);
 
 const STANDARD_TASKS = [
   "AEO Workspace ID - UPGRADE",
