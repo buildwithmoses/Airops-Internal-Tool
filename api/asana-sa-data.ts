@@ -288,6 +288,11 @@ export default async function handler(req: any, res: any) {
       }
     }
 
+    // Build a set of pod lead names for reliable isLead detection (normalise apostrophes)
+    const podLeadNames = new Set(
+      Object.values(SECTION_POD_MAP).map(p => p.lead.replace('\u2019', "'"))
+    );
+
     const saData = Object.entries(saMap)
       .map(([name, data]) => {
         // Count only non-placeholder use cases for capacity calculation
@@ -299,11 +304,13 @@ export default async function handler(req: any, res: any) {
 
         const sectionGid = saSectionMap[name];
         const podInfo = sectionGid ? SECTION_POD_MAP[sectionGid] : null;
+        const normalisedName = name.replace('\u2019', "'");
 
         return {
           name,
           pod: podInfo?.pod || '',
           lead: podInfo?.lead || '',
+          isLead: podLeadNames.has(normalisedName),
           useCases: data.useCases, // Includes both real use cases and placeholders
           totalHours,
           monthBreakdown: { m1: m1Count, m2: m2Count, m3: m3Count },

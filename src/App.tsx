@@ -162,10 +162,10 @@ const STANDARD_TASKS = [
 const emptySA = (name: string): SA => ({ name, pod: '', lead: '', isLead: false, useCases: [], totalHours: 0, monthBreakdown: { m1: 0, m2: 0, m3: 0 }, capacity: 128, utilizationPct: 0, notes: '' });
 
 const INITIAL_SAS: SA[] = [
-  emptySA("Aaron Lit"), emptySA("AJ Diaz"), emptySA("Andreea Volzer"), emptySA("Anton O'Malley"),
+  emptySA("Aaron Lit"), emptySA("AJ Diaz"), emptySA("Anton O'Malley"),
   emptySA("Arnett Shen"), emptySA("Charles Ellenburg"), emptySA("Diana Shiling"), emptySA("Elmi Abdullahi"),
   emptySA("Henry Moses Jr"), emptySA("Henry Young"), emptySA("Jeremy Kao"), emptySA("Joel Fazecas"),
-  emptySA("John Sellers"), emptySA("Palmer Jones"), emptySA("Richard Li"), emptySA("Shahbaz Mahmood"),
+  emptySA("John Sellers"), emptySA("Palmer Jones"), emptySA("Shahbaz Mahmood"),
   emptySA("William Reed"), emptySA("Zoe Febrero"),
 ];
 
@@ -1168,7 +1168,7 @@ export default function App() {
             name: sa.name,
             pod: sa.pod || '',
             lead: sa.lead || '',
-            isLead: sa.lead ? sa.name === sa.lead || sa.name.replace('\u2019', "'") === sa.lead : false,
+            isLead: sa.isLead || false,
             useCases: sa.useCases || [],
             totalHours: sa.totalHours || 0,
             monthBreakdown: sa.monthBreakdown || { m1: 0, m2: 0, m3: 0 },
