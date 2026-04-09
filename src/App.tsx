@@ -108,6 +108,9 @@ interface UseCase {
 
 interface SA {
   name: string;
+  pod: string;
+  lead: string;
+  isLead: boolean;
   useCases: UseCase[];
   totalHours: number;
   monthBreakdown: { m1: number; m2: number; m3: number };
@@ -117,35 +120,6 @@ interface SA {
 }
 
 // --- Constants & Seed Data ---
-
-// Pod → SA Lead mapping
-const SA_POD_MAP: Record<string, { pod: string; lead: string }> = {
-  // Pod Sqod (Richard's Pod)
-  "Anton O'Malley": { pod: "Pod Sqod", lead: "Richard Li" },
-  "Henry Moses Jr": { pod: "Pod Sqod", lead: "Richard Li" },
-  "Jeremy Kao": { pod: "Pod Sqod", lead: "Richard Li" },
-  "John Sellers": { pod: "Pod Sqod", lead: "Richard Li" },
-  "Palmer Jones": { pod: "Pod Sqod", lead: "Richard Li" },
-  "Richard Li": { pod: "Pod Sqod", lead: "Richard Li" },
-  // Melanie's Pod
-  "Aaron Lit": { pod: "Melanie's Pod", lead: "Melanie Dell'Olio" },
-  "AJ Diaz": { pod: "Melanie's Pod", lead: "Melanie Dell'Olio" },
-  "Diana Shiling": { pod: "Melanie's Pod", lead: "Melanie Dell'Olio" },
-  "Elmi Abdullahi": { pod: "Melanie's Pod", lead: "Melanie Dell'Olio" },
-  "Henry Young": { pod: "Melanie's Pod", lead: "Melanie Dell'Olio" },
-  "Melanie Dell'Olio": { pod: "Melanie's Pod", lead: "Melanie Dell'Olio" },
-  "William Reed": { pod: "Melanie's Pod", lead: "Melanie Dell'Olio" },
-  "Zoe Febrero": { pod: "Melanie's Pod", lead: "Melanie Dell'Olio" },
-  // Andreea's Pod
-  "Andreea Volzer": { pod: "Andreea's Pod", lead: "Andreea Volzer" },
-  "Arnett Shen": { pod: "Andreea's Pod", lead: "Andreea Volzer" },
-  "Joel Fazecas": { pod: "Andreea's Pod", lead: "Andreea Volzer" },
-  "Shahbaz Mahmood": { pod: "Andreea's Pod", lead: "Andreea Volzer" },
-  // Offsite
-  "Charles Ellenburg": { pod: "Offsite", lead: "Charles Ellenburg" },
-};
-
-const getSALead = (saName: string): string | null => SA_POD_MAP[saName]?.lead || null;
 
 // SA name → email mapping for calendar lookups
 const SA_EMAIL_MAP: Record<string, string> = {
@@ -172,15 +146,6 @@ const SA_EMAIL_MAP: Record<string, string> = {
 
 const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 80);
 
-// Pod leads derived dynamically: anyone whose name matches their pod's lead
-// These are excluded from kickoff assignment but still shown in the capacity tracker
-const SA_POD_LEADS = new Set(
-  Object.entries(SA_POD_MAP)
-    .filter(([name, { lead }]) => name === lead)
-    .map(([name]) => name)
-);
-// Asana uses a curly apostrophe in Melanie's name — add the variant for data matching
-SA_POD_LEADS.add("Melanie Dell\u2019Olio");
 
 const STANDARD_TASKS = [
   "AEO Workspace ID - UPGRADE",
@@ -194,7 +159,7 @@ const STANDARD_TASKS = [
   "Add Hubspot ID to Admin"
 ];
 
-const emptySA = (name: string): SA => ({ name, useCases: [], totalHours: 0, monthBreakdown: { m1: 0, m2: 0, m3: 0 }, capacity: 128, utilizationPct: 0, notes: '' });
+const emptySA = (name: string): SA => ({ name, pod: '', lead: '', isLead: false, useCases: [], totalHours: 0, monthBreakdown: { m1: 0, m2: 0, m3: 0 }, capacity: 128, utilizationPct: 0, notes: '' });
 
 const INITIAL_SAS: SA[] = [
   emptySA("Aaron Lit"), emptySA("AJ Diaz"), emptySA("Andreea Volzer"), emptySA("Anton O'Malley"),
@@ -702,7 +667,7 @@ function BookingPanel({ bookingWeek, sasSortedByCapacity, kickoffs, maxSlots, hu
       }, {});
 
     // Auto-assign: lowest utilization SA with fewer than 2 kickoffs THIS week (exclude pod leads and Offsite-only SAs)
-    const assignableSAs = sasSortedByCapacity.filter(sa => !SA_POD_LEADS.has(sa.name) && sa.name !== 'Charles Ellenburg');
+    const assignableSAs = sasSortedByCapacity.filter(sa => !sa.isLead && sa.name !== 'Charles Ellenburg');
     const autoAssignedSA = assignableSAs.find(sa => (saWeekCounts[sa.name] || 0) < 2)?.name
       || assignableSAs[0]?.name;
 
@@ -920,7 +885,7 @@ function BookingPanel({ bookingWeek, sasSortedByCapacity, kickoffs, maxSlots, hu
             >
               {sasSortedByCapacity.filter(sa => {
                 if (sa.name === 'Charles Ellenburg') return selectedUseCases.includes('Offsite');
-                if (SA_POD_LEADS.has(sa.name)) return false;
+                if (sa.isLead) return false;
                 return (saWeekCounts[sa.name] || 0) < 2;
               }).map(sa => (
                 <option key={sa.name} value={sa.name}>{sa.name}</option>
@@ -941,8 +906,8 @@ function BookingPanel({ bookingWeek, sasSortedByCapacity, kickoffs, maxSlots, hu
           <div className="space-y-2">
             <label className="mono-label text-[#676c79]">SA Lead</label>
             <div className="w-full p-3 border border-[#d4e8da] bg-[#F8FFFA] text-sm">
-              {getSALead(sa1) ? (
-                <span className="font-sans">{getSALead(sa1)} <span className="text-[#676c79]">({SA_POD_MAP[sa1]?.pod})</span></span>
+              {sasSortedByCapacity.find(s => s.name === sa1)?.lead ? (
+                <span className="font-sans">{sasSortedByCapacity.find(s => s.name === sa1)?.lead} <span className="text-[#676c79]">({sasSortedByCapacity.find(s => s.name === sa1)?.pod})</span></span>
               ) : (
                 <span className="text-[#a5aab6] italic">No pod assigned</span>
               )}
@@ -955,12 +920,15 @@ function BookingPanel({ bookingWeek, sasSortedByCapacity, kickoffs, maxSlots, hu
             <input
               type="date"
               value={date1}
-              onChange={(e) => setDate1(e.target.value)}
+              onChange={(e) => {
+                const day = new Date(e.target.value + 'T00:00:00').getDay();
+                if (day !== 0 && day !== 6) setDate1(e.target.value);
+              }}
               min={today}
               max={maxDate}
               className="w-full p-3 border border-[#d4e8da] focus:border-[#008c44] outline-none"
             />
-            <p className="text-xs text-[#676c79]">Week {derivedWeek1} — {week1SlotsUsed} / {maxSlots} slots used</p>
+            <p className="text-xs text-[#676c79]">Week {derivedWeek1} — {week1SlotsUsed} / {maxSlots} slots used · weekdays only</p>
           </div>
 
           <div className="space-y-2">
@@ -1185,8 +1153,11 @@ export default function App() {
       .then(res => res.json())
       .then(json => {
         if (json.data && json.data.length > 0) {
-          const saData: SA[] = json.data.filter((sa: any) => !SA_POD_LEADS.has(sa.name)).map((sa: any) => ({
+          const saData: SA[] = json.data.map((sa: any) => ({
             name: sa.name,
+            pod: sa.pod || '',
+            lead: sa.lead || '',
+            isLead: sa.lead ? sa.name === sa.lead || sa.name.replace('\u2019', "'") === sa.lead : false,
             useCases: sa.useCases || [],
             totalHours: sa.totalHours || 0,
             monthBreakdown: sa.monthBreakdown || { m1: 0, m2: 0, m3: 0 },
@@ -1527,6 +1498,9 @@ export default function App() {
       setDeckGenerating(null);
     }
   }, [selectedKickoff, agentForm]);
+
+  // Lookup helper: find SA info (pod, lead, isLead) by name from live Asana data
+  const saInfo = (name: string) => sas.find(s => s.name === name || s.name.replace('\u2019', "'") === name);
 
   // Recalculate hours/utilization using the configurable M1/M2/M3 values from Settings
   const sasWithRecalcHours = sas.map(sa => {
