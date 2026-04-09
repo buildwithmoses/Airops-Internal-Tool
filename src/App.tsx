@@ -693,15 +693,17 @@ function BookingPanel({ bookingWeek, sasSortedByCapacity, kickoffs, maxSlots, hu
     const week1SlotsUsed = kickoffs.filter(k => k.week === derivedWeek1).length;
     const week1IsFull = week1SlotsUsed >= maxSlots;
 
-    // Count ALL kickoffs per SA across all weeks (includes ones not yet in Asana)
-    const saAllCounts = kickoffs.reduce<Record<string, number>>((acc, k) => {
-      acc[k.saName] = (acc[k.saName] || 0) + 1;
-      return acc;
-    }, {});
+    // Count kickoffs per SA for the specific week being booked
+    const saWeekCounts = kickoffs
+      .filter(k => k.week === derivedWeek1)
+      .reduce<Record<string, number>>((acc, k) => {
+        acc[k.saName] = (acc[k.saName] || 0) + 1;
+        return acc;
+      }, {});
 
-    // Auto-assign: lowest utilization SA with fewer than 2 total kickoffs (exclude pod leads and Offsite-only SAs)
+    // Auto-assign: lowest utilization SA with fewer than 2 kickoffs THIS week (exclude pod leads and Offsite-only SAs)
     const assignableSAs = sasSortedByCapacity.filter(sa => !SA_POD_LEADS.has(sa.name) && sa.name !== 'Charles Ellenburg');
-    const autoAssignedSA = assignableSAs.find(sa => (saAllCounts[sa.name] || 0) < 2)?.name
+    const autoAssignedSA = assignableSAs.find(sa => (saWeekCounts[sa.name] || 0) < 2)?.name
       || assignableSAs[0]?.name;
 
     const [sa1, setSa1] = useState(autoAssignedSA);
@@ -713,15 +715,14 @@ function BookingPanel({ bookingWeek, sasSortedByCapacity, kickoffs, maxSlots, hu
         if (selectedUseCases.includes('Offsite')) {
           setSa1('Charles Ellenburg');
         } else {
-          const best = assignableSAs.find(sa => (saAllCounts[sa.name] || 0) < 2)?.name
+          const best = assignableSAs.find(sa => (saWeekCounts[sa.name] || 0) < 2)?.name
             || assignableSAs[0]?.name;
           setSa1(best);
         }
       }
     }, [derivedWeek1, selectedUseCases]);
 
-    const sa1TotalCount = saAllCounts[sa1] || 0;
-    const sa1AtLimit = sa1TotalCount >= 2;
+    const sa1AtLimit = (saWeekCounts[sa1] || 0) >= 2;
 
     const today = new Date().toISOString().split('T')[0];
     const maxDate = new Date(Date.now() + 56 * 86400000).toISOString().split('T')[0];
@@ -919,15 +920,11 @@ function BookingPanel({ bookingWeek, sasSortedByCapacity, kickoffs, maxSlots, hu
             >
               {sasSortedByCapacity.filter(sa => {
                 if (sa.name === 'Charles Ellenburg') return selectedUseCases.includes('Offsite');
-                return !SA_POD_LEADS.has(sa.name);
-              }).map(sa => {
-                const atLimit = (saAllCounts[sa.name] || 0) >= 2;
-                return (
-                  <option key={sa.name} value={sa.name}>
-                    {sa.name}{atLimit ? ' ⚠️ at limit' : ''}
-                  </option>
-                );
-              })}
+                if (SA_POD_LEADS.has(sa.name)) return false;
+                return (saWeekCounts[sa.name] || 0) < 2;
+              }).map(sa => (
+                <option key={sa.name} value={sa.name}>{sa.name}</option>
+              ))}
             </select>
             {sa1AtLimit ? (
               <p className="text-xs text-red-500 flex items-center gap-1">
