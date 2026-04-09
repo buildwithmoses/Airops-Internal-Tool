@@ -1034,6 +1034,7 @@ export default function App() {
   const [hubspotDeals, setHubspotDeals] = useState<HubSpotDeal[]>([]);
   const [hubspotAEs, setHubspotAEs] = useState<HubSpotAE[]>([]);
   const [excludedPeople, setExcludedPeople] = useState<string[]>([]);
+  const [podList, setPodList] = useState<string[]>([]);
   const [settingsSaved, setSettingsSaved] = useState(false);
   const [dragKickoffId, setDragKickoffId] = useState<string | null>(null);
   const [dragOverWeek, setDragOverWeek] = useState<string | null>(null);
@@ -1178,6 +1179,10 @@ export default function App() {
           // Store excluded people (IE and CMS)
           if (json.excludedPeople) {
             setExcludedPeople(json.excludedPeople);
+          }
+          // Store authoritative pod list from API
+          if (json.pods && json.pods.length > 0) {
+            setPodList(json.pods);
           }
           // Load persisted SA notes and merge
           fetch('/api/sa-notes-list')
@@ -2094,7 +2099,7 @@ export default function App() {
   const [expandedSA, setExpandedSA] = useState<string | null>(null);
   const [expandedCustomers, setExpandedCustomers] = useState<Set<string>>(new Set());
 
-  const pods = [...new Set(sas.map(sa => sa.pod).filter(Boolean))];
+  const pods = podList;
 
   const capacityFilteredSAs = (capacityPodFilter === 'all'
     ? sas

@@ -8,6 +8,13 @@ const USE_CASE_PHASE_GID = '1213301486281125';
 const CUSTOMER_FIELD_GID = '1213193818616005';
 const KICKOFF_DATE_GID = '1213264165642656';
 
+// Asana section GID → pod name + lead (sections ARE pods in this project)
+const SECTION_POD_MAP: Record<string, { pod: string; lead: string }> = {
+  '1213272400614397': { pod: "Andreea's Pod", lead: 'Andreea Volzer' },
+  '1213272400614388': { pod: "Melanie's Pod", lead: "Melanie Dell'Olio" },
+  '1213272400614398': { pod: 'Pod Sqod', lead: 'Richard Li' },
+};
+
 // Capacity constants
 const HOURS_M1 = 35;
 const HOURS_M2 = 25;
@@ -18,6 +25,10 @@ interface AsanaTask {
   name: string;
   completed: boolean;
   assignee: { gid: string; name: string } | null;
+  memberships: Array<{
+    project: { gid: string } | null;
+    section: { gid: string; name: string } | null;
+  }>;
   custom_fields: Array<{
     gid: string;
     display_value: string | null;
@@ -70,7 +81,7 @@ function getHoursForMonth(month: 1 | 2 | 3): number {
 async function fetchAllTasks(): Promise<AsanaTask[]> {
   const allTasks: AsanaTask[] = [];
   let nextPage: string | null = null;
-  const fields = 'name,completed,assignee.name,custom_fields.gid,custom_fields.display_value,custom_fields.enum_value.name,custom_fields.text_value,custom_fields.date_value';
+  const fields = 'name,completed,assignee.name,memberships.project.gid,memberships.section.gid,memberships.section.name,custom_fields.gid,custom_fields.display_value,custom_fields.enum_value.name,custom_fields.text_value,custom_fields.date_value';
 
   do {
     const url = nextPage
@@ -164,6 +175,25 @@ export default async function handler(req: any, res: any) {
     // Fetch subtasks for all SA tasks
     const taskGids = saTasks.map(t => t.gid);
     const subtasksMap = await fetchAllSubtasks(taskGids);
+
+    // Build SA → section mapping from SUBTASK assignees (first occurrence wins).
+    // Pod membership is determined by who is assigned to subtasks, not main task assignees.
+    const saSectionMap: Record<string, string> = {}; // saName → section GID
+    for (const task of saTasks) {
+      const membership = (task.memberships || []).find(m => m.project?.gid === PROJECT_GID);
+      const sectionGid = membership?.section?.gid;
+      if (!sectionGid) continue;
+
+      const subtasks = subtasksMap[task.gid] || [];
+      for (const sub of subtasks) {
+        if (!sub.assignee) continue;
+        const assigneeName = sub.assignee.name;
+        if (ieSet.has(assigneeName) || cmsSet.has(assigneeName)) continue;
+        if (!saSectionMap[assigneeName]) {
+          saSectionMap[assigneeName] = sectionGid;
+        }
+      }
+    }
 
     // Build SA capacity data
     const saMap: Record<string, {
@@ -267,8 +297,13 @@ export default async function handler(req: any, res: any) {
         const m3Count = nonPlaceholderUseCases.filter(uc => uc.month === 3).length;
         const totalHours = nonPlaceholderUseCases.filter(uc => uc.month !== null).reduce((sum, uc) => sum + uc.hours, 0);
 
+        const sectionGid = saSectionMap[name];
+        const podInfo = sectionGid ? SECTION_POD_MAP[sectionGid] : null;
+
         return {
           name,
+          pod: podInfo?.pod || '',
+          lead: podInfo?.lead || '',
           useCases: data.useCases, // Includes both real use cases and placeholders
           totalHours,
           monthBreakdown: { m1: m1Count, m2: m2Count, m3: m3Count },
@@ -279,9 +314,14 @@ export default async function handler(req: any, res: any) {
       })
       .sort((a, b) => b.utilizationPct - a.utilizationPct);
 
-    res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=600');
+    // Return the authoritative pod list from SECTION_POD_MAP so the frontend
+    // always has all pods regardless of which SAs have active subtasks.
+    const pods = Object.values(SECTION_POD_MAP).map(p => p.pod);
+
+    res.setHeader('Cache-Control', 'no-store');
     return sendJson(res, 200, {
       data: saData,
+      pods,
       excludedPeople: Array.from(ieSet).concat(Array.from(cmsSet))
     });
   } catch (err: any) {
