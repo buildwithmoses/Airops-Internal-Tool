@@ -172,9 +172,15 @@ const SA_EMAIL_MAP: Record<string, string> = {
 
 const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 80);
 
-// SAs excluded from kickoff assignment (e.g. pod leads not taking new kickoffs)
-// Note: Asana uses a curly apostrophe (') in her name — both variants included
-const SA_ASSIGNMENT_EXCLUDED = new Set(["Melanie Dell'Olio", "Melanie Dell\u2019Olio", "Richard Li"]);
+// Pod leads derived dynamically: anyone whose name matches their pod's lead
+// These are excluded from kickoff assignment but still shown in the capacity tracker
+const SA_POD_LEADS = new Set(
+  Object.entries(SA_POD_MAP)
+    .filter(([name, { lead }]) => name === lead)
+    .map(([name]) => name)
+);
+// Asana uses a curly apostrophe in Melanie's name — add the variant for data matching
+SA_POD_LEADS.add("Melanie Dell\u2019Olio");
 
 const STANDARD_TASKS = [
   "AEO Workspace ID - UPGRADE",
@@ -802,7 +808,7 @@ export default function App() {
       .then(res => res.json())
       .then(json => {
         if (json.data && json.data.length > 0) {
-          const saData: SA[] = json.data.filter((sa: any) => !SA_ASSIGNMENT_EXCLUDED.has(sa.name)).map((sa: any) => ({
+          const saData: SA[] = json.data.filter((sa: any) => !SA_POD_LEADS.has(sa.name)).map((sa: any) => ({
             name: sa.name,
             useCases: sa.useCases || [],
             totalHours: sa.totalHours || 0,
@@ -1727,16 +1733,12 @@ export default function App() {
   const [expandedSA, setExpandedSA] = useState<string | null>(null);
   const [expandedCustomers, setExpandedCustomers] = useState<Set<string>>(new Set());
 
-  const pods = [...new Set(
-    Object.entries(SA_POD_MAP)
-      .filter(([name]) => !SA_ASSIGNMENT_EXCLUDED.has(name))
-      .map(([, v]) => v.pod)
-  )];
+  const pods = [...new Set(Object.values(SA_POD_MAP).map(v => v.pod))];
 
   const capacityFilteredSAs = (capacityPodFilter === 'all'
     ? sas
     : sas.filter(sa => SA_POD_MAP[sa.name]?.pod === capacityPodFilter)
-  ).filter(sa => !SA_ASSIGNMENT_EXCLUDED.has(sa.name));
+  ).filter(sa => !SA_POD_LEADS.has(sa.name));
 
   const capacitySorted = [...capacityFilteredSAs].sort((a, b) => b.utilizationPct - a.utilizationPct);
 
@@ -2138,8 +2140,8 @@ export default function App() {
       return acc;
     }, {});
 
-    // Auto-assign: lowest utilization SA with fewer than 2 total kickoffs (exclude Offsite-only SAs)
-    const assignableSAs = sasSortedByCapacity.filter(sa => sa.name !== 'Charles Ellenburg');
+    // Auto-assign: lowest utilization SA with fewer than 2 total kickoffs (exclude pod leads and Offsite-only SAs)
+    const assignableSAs = sasSortedByCapacity.filter(sa => !SA_POD_LEADS.has(sa.name) && sa.name !== 'Charles Ellenburg');
     const autoAssignedSA = assignableSAs.find(sa => (saAllCounts[sa.name] || 0) < 2)?.name
       || assignableSAs[0]?.name;
 
@@ -2356,7 +2358,10 @@ export default function App() {
               onChange={(e) => { setSa1(e.target.value); setUserPickedSA(true); }}
               className={`w-full p-3 border outline-none bg-white text-sm font-sans ${sa1AtLimit ? 'border-red-300' : 'border-[#d4e8da] focus:border-[#008c44]'}`}
             >
-              {sasSortedByCapacity.filter(sa => !SA_ASSIGNMENT_EXCLUDED.has(sa.name) && (sa.name !== 'Charles Ellenburg' || selectedUseCases.includes('Offsite'))).map(sa => {
+              {sasSortedByCapacity.filter(sa => {
+                if (sa.name === 'Charles Ellenburg') return selectedUseCases.includes('Offsite');
+                return !SA_POD_LEADS.has(sa.name);
+              }).map(sa => {
                 const atLimit = (saAllCounts[sa.name] || 0) >= 2;
                 return (
                   <option key={sa.name} value={sa.name}>
@@ -2533,7 +2538,7 @@ export default function App() {
                 onChange={(e) => handleUpdateKickoff(selectedKickoff.id, { saName: e.target.value })}
                 className="w-full p-2 border border-[#d4e8da] focus:border-[#008c44] outline-none bg-white text-sm font-sans"
               >
-                {Object.keys(SA_POD_MAP).filter(name => !SA_ASSIGNMENT_EXCLUDED.has(name)).map(name => (
+                {Object.keys(SA_POD_MAP).filter(name => !SA_POD_LEADS.has(name)).map(name => (
                   <option key={name} value={name}>{name}</option>
                 ))}
               </select>
