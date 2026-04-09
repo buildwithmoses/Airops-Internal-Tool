@@ -660,6 +660,386 @@ function BookingPage({ kickoffId }: { kickoffId: string }) {
   );
 }
 
+interface BookingPanelProps {
+  bookingWeek: string;
+  sasSortedByCapacity: SA[];
+  kickoffs: Kickoff[];
+  maxSlots: number;
+  hubspotDeals: HubSpotDeal[];
+  hubspotAEs: HubSpotAE[];
+  excludedPeople: string[];
+  handleAddKickoff: (data: Omit<Kickoff, 'id' | 'tasks' | 'createdAt'>) => void;
+  setIsBookingOpen: (open: boolean) => void;
+}
+
+function BookingPanel({ bookingWeek, sasSortedByCapacity, kickoffs, maxSlots, hubspotDeals, hubspotAEs, excludedPeople, handleAddKickoff, setIsBookingOpen }: BookingPanelProps) {
+    const [customerName, setCustomerName] = useState('');
+    const [aeName, setAeName] = useState('');
+    const [selectedUseCases, setSelectedUseCases] = useState<string[]>([]);
+    const [dealSearch, setDealSearch] = useState('');
+    const [dealDropdownOpen, setDealDropdownOpen] = useState(false);
+    const dealRef = useRef<HTMLDivElement>(null);
+    const [aeSearch, setAeSearch] = useState('');
+    const [aeDropdownOpen, setAeDropdownOpen] = useState(false);
+    const aeRef = useRef<HTMLDivElement>(null);
+    const [notes, setNotes] = useState('');
+    const [timezone, setTimezone] = useState('');
+    const [arr, setArr] = useState('');
+    const [isPoc, setIsPoc] = useState(false);
+
+    const [date1, setDate1] = useState('');
+
+    const derivedWeek1 = date1 ? getWeekString(new Date(date1 + 'T00:00:00')) : bookingWeek;
+    const week1SlotsUsed = kickoffs.filter(k => k.week === derivedWeek1).length;
+    const week1IsFull = week1SlotsUsed >= maxSlots;
+
+    // Count ALL kickoffs per SA across all weeks (includes ones not yet in Asana)
+    const saAllCounts = kickoffs.reduce<Record<string, number>>((acc, k) => {
+      acc[k.saName] = (acc[k.saName] || 0) + 1;
+      return acc;
+    }, {});
+
+    // Auto-assign: lowest utilization SA with fewer than 2 total kickoffs (exclude pod leads and Offsite-only SAs)
+    const assignableSAs = sasSortedByCapacity.filter(sa => !SA_POD_LEADS.has(sa.name) && sa.name !== 'Charles Ellenburg');
+    const autoAssignedSA = assignableSAs.find(sa => (saAllCounts[sa.name] || 0) < 2)?.name
+      || assignableSAs[0]?.name;
+
+    const [sa1, setSa1] = useState(autoAssignedSA);
+
+    // Re-derive SA when date or use case changes (don't override manual picks)
+    const [userPickedSA, setUserPickedSA] = useState(false);
+    useEffect(() => {
+      if (!userPickedSA) {
+        if (selectedUseCases.includes('Offsite')) {
+          setSa1('Charles Ellenburg');
+        } else {
+          const best = assignableSAs.find(sa => (saAllCounts[sa.name] || 0) < 2)?.name
+            || assignableSAs[0]?.name;
+          setSa1(best);
+        }
+      }
+    }, [derivedWeek1, selectedUseCases]);
+
+    const sa1TotalCount = saAllCounts[sa1] || 0;
+    const sa1AtLimit = sa1TotalCount >= 2;
+
+    const today = new Date().toISOString().split('T')[0];
+    const maxDate = new Date(Date.now() + 56 * 86400000).toISOString().split('T')[0];
+
+    const handleSubmit = () => {
+      handleAddKickoff({
+        customerName,
+        aeName,
+        saName: sa1,
+        week: derivedWeek1,
+        status: 'NOT STARTED',
+        notes,
+        eventDate: date1 ? new Date(date1 + 'T00:00:00').toISOString() : undefined,
+        useCaseType: selectedUseCases.length > 0 ? selectedUseCases.join(', ') : undefined,
+        timezone: timezone || undefined,
+        arr: arr || undefined,
+        isPoc,
+      });
+    };
+
+    const filteredDeals = hubspotDeals.filter((d: HubSpotDeal) =>
+      (d.name || '').toLowerCase().includes(dealSearch.toLowerCase())
+    );
+
+    const filteredAEs = hubspotAEs.filter((a: HubSpotAE) =>
+      (a.name || '').toLowerCase().includes(aeSearch.toLowerCase()) &&
+      !excludedPeople.includes(a.name)
+    );
+
+    useEffect(() => {
+      const handler = (e: MouseEvent) => {
+        if (dealRef.current && !dealRef.current.contains(e.target as Node)) {
+          setDealDropdownOpen(false);
+        }
+        if (aeRef.current && !aeRef.current.contains(e.target as Node)) {
+          setAeDropdownOpen(false);
+        }
+      };
+      document.addEventListener('mousedown', handler);
+      return () => document.removeEventListener('mousedown', handler);
+    }, []);
+
+    const canSubmit = customerName && aeName && date1 && selectedUseCases.length > 0 && !week1IsFull && !sa1AtLimit;
+
+    return (
+      <motion.div
+        initial={{ x: '100%' }}
+        animate={{ x: 0 }}
+        exit={{ x: '100%' }}
+        transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+        onClick={(e) => e.stopPropagation()}
+        className="fixed top-0 right-0 h-full w-full sm:w-[420px] bg-white border-l border-[#d4e8da] z-50 shadow-2xl p-6 sm:p-8 overflow-y-auto"
+      >
+        <div className="flex justify-between items-center mb-8">
+          <h2 className="text-3xl font-serif">Book Slot</h2>
+          <button onClick={() => setIsBookingOpen(false)} className="text-[#676c79] hover:text-[#000d05]">
+            <X size={24} />
+          </button>
+        </div>
+
+        <div className="space-y-6">
+          {/* Use Case Type */}
+          <div className="space-y-2">
+            <label className="mono-label text-[#676c79]">Use Case Type</label>
+            <div className="space-y-2">
+              {USE_CASE_TYPES.map(type => {
+                const isSelected = selectedUseCases.includes(type);
+                const isOffsite = type === 'Offsite';
+                const hasOffsite = selectedUseCases.includes('Offsite');
+                const hasNonOffsite = selectedUseCases.some(t => t !== 'Offsite');
+                const isDisabled = (isOffsite && hasNonOffsite) || (!isOffsite && hasOffsite);
+                return (
+                  <label
+                    key={type}
+                    className={`flex items-center gap-3 p-3 border cursor-pointer transition-all ${
+                      isSelected ? 'border-[#008c44] bg-[#f0faf4]' : 'border-[#d4e8da] hover:border-[#008c44]'
+                    } ${isDisabled ? 'opacity-40 cursor-not-allowed' : ''}`}
+                  >
+                    <div
+                      className={`w-5 h-5 border flex items-center justify-center transition-colors ${
+                        isSelected ? 'bg-[#008c44] border-[#008c44]' : 'border-[#d4e8da]'
+                      }`}
+                    >
+                      {isSelected && <Check size={14} className="text-white" />}
+                    </div>
+                    <input
+                      type="checkbox"
+                      className="sr-only"
+                      checked={isSelected}
+                      disabled={isDisabled}
+                      onChange={() => {
+                        if (isDisabled) return;
+                        if (isSelected) {
+                          setSelectedUseCases(prev => prev.filter(t => t !== type));
+                        } else {
+                          if (isOffsite) {
+                            setSelectedUseCases(['Offsite']);
+                          } else {
+                            setSelectedUseCases(prev => [...prev.filter(t => t !== 'Offsite'), type]);
+                          }
+                        }
+                      }}
+                    />
+                    <span className="text-sm font-sans text-[#09090b]">{type}</span>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="mono-label text-[#676c79]">Customer Name</label>
+            {hubspotDeals.length > 0 ? (
+              <div ref={dealRef} className="relative">
+                <div
+                  onClick={() => setDealDropdownOpen(!dealDropdownOpen)}
+                  className="w-full p-3 border border-[#d4e8da] focus-within:border-[#008c44] cursor-pointer flex items-center justify-between"
+                >
+                  <span className={`text-sm ${customerName ? 'text-[#09090b]' : 'text-[#a5aab6]'}`}>
+                    {customerName || 'Select a deal...'}
+                  </span>
+                  <ChevronRight size={16} className={`text-[#676c79] transition-transform ${dealDropdownOpen ? 'rotate-90' : ''}`} />
+                </div>
+                {dealDropdownOpen && (
+                  <div className="absolute top-full left-0 w-full bg-white border border-[#d4e8da] z-50 shadow-xl mt-1 max-h-72 overflow-hidden flex flex-col">
+                    <div className="p-2 border-b border-[#ecedef]">
+                      <div className="flex items-center gap-2 px-2 py-1.5 bg-[#f8f8f8] border border-[#d4e8da]">
+                        <Search size={14} className="text-[#a5aab6] flex-shrink-0" />
+                        <input
+                          type="text"
+                          value={dealSearch}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDealSearch(e.target.value)}
+                          placeholder="Search deals..."
+                          className="w-full bg-transparent outline-none text-sm"
+                          autoFocus
+                        />
+                      </div>
+                    </div>
+                    <div className="overflow-y-auto max-h-56">
+                      {filteredDeals.length === 0 ? (
+                        <div className="px-4 py-3 text-sm text-[#a5aab6] text-center">No deals found</div>
+                      ) : (
+                        filteredDeals.map((deal: HubSpotDeal) => (
+                          <button
+                            key={deal.id}
+                            onClick={() => {
+                              setCustomerName(deal.name);
+                              if (deal.amount) setArr(deal.amount);
+                              if (deal.aeName) setAeName(deal.aeName);
+                              setDealDropdownOpen(false);
+                              setDealSearch('');
+                            }}
+                            className={`w-full px-4 py-2.5 text-left text-sm hover:bg-[#f0faf4] transition-colors flex items-center justify-between ${customerName === deal.name ? 'bg-[#f0faf4] font-bold' : ''}`}
+                          >
+                            <span className="font-sans">{deal.name}</span>
+                            {deal.amount && (
+                              <span className="text-xs text-[#676c79] ml-2">${Number(deal.amount).toLocaleString()}</span>
+                            )}
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <input
+                type="text"
+                value={customerName}
+                onChange={(e) => setCustomerName(e.target.value)}
+                placeholder="e.g. Acme Corp"
+                className="w-full p-3 border border-[#d4e8da] focus:border-[#008c44] outline-none"
+              />
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <label className="mono-label text-[#676c79]">AE Name</label>
+            <input
+              type="text"
+              value={aeName}
+              onChange={(e) => setAeName(e.target.value)}
+              placeholder="Enter AE name"
+              className="w-full p-3 border border-[#d4e8da] focus:border-[#008c44] outline-none"
+            />
+          </div>
+
+          {/* SA — auto-assigned but overridable */}
+          <div className="space-y-2">
+            <label className="mono-label text-[#676c79]">SA</label>
+            <select
+              value={sa1}
+              onChange={(e) => { setSa1(e.target.value); setUserPickedSA(true); }}
+              className={`w-full p-3 border outline-none bg-white text-sm font-sans ${sa1AtLimit ? 'border-red-300' : 'border-[#d4e8da] focus:border-[#008c44]'}`}
+            >
+              {sasSortedByCapacity.filter(sa => {
+                if (sa.name === 'Charles Ellenburg') return selectedUseCases.includes('Offsite');
+                return !SA_POD_LEADS.has(sa.name);
+              }).map(sa => {
+                const atLimit = (saAllCounts[sa.name] || 0) >= 2;
+                return (
+                  <option key={sa.name} value={sa.name}>
+                    {sa.name}{atLimit ? ' ⚠️ at limit' : ''}
+                  </option>
+                );
+              })}
+            </select>
+            {sa1AtLimit ? (
+              <p className="text-xs text-red-500 flex items-center gap-1">
+                <AlertCircle size={12} /> {sa1} is at the kickoff limit — pick someone else
+              </p>
+            ) : (
+              <p className="text-xs text-[#008c44] flex items-center gap-1">
+                <CheckCircle2 size={12} /> {userPickedSA ? 'Manually selected' : 'Auto-assigned'}
+              </p>
+            )}
+          </div>
+
+          {/* SA Lead */}
+          <div className="space-y-2">
+            <label className="mono-label text-[#676c79]">SA Lead</label>
+            <div className="w-full p-3 border border-[#d4e8da] bg-[#F8FFFA] text-sm">
+              {getSALead(sa1) ? (
+                <span className="font-sans">{getSALead(sa1)} <span className="text-[#676c79]">({SA_POD_MAP[sa1]?.pod})</span></span>
+              ) : (
+                <span className="text-[#a5aab6] italic">No pod assigned</span>
+              )}
+            </div>
+          </div>
+
+          {/* Kickoff Date */}
+          <div className="space-y-2">
+            <label className="mono-label text-[#676c79]">Kickoff Date</label>
+            <input
+              type="date"
+              value={date1}
+              onChange={(e) => setDate1(e.target.value)}
+              min={today}
+              max={maxDate}
+              className="w-full p-3 border border-[#d4e8da] focus:border-[#008c44] outline-none"
+            />
+            <p className="text-xs text-[#676c79]">Week {derivedWeek1} — {week1SlotsUsed} / {maxSlots} slots used</p>
+          </div>
+
+          <div className="space-y-2">
+            <label className="mono-label text-[#676c79]">Notes</label>
+            <textarea
+              rows={4}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Any specific requirements..."
+              className="w-full p-3 border border-[#d4e8da] focus:border-[#008c44] outline-none"
+            />
+          </div>
+
+          {/* Time Zone */}
+          <div className="space-y-2">
+            <label className="mono-label text-[#676c79]">Time Zone (Main Contact)</label>
+            <select
+              value={timezone}
+              onChange={(e) => setTimezone(e.target.value)}
+              className="w-full p-3 border border-[#d4e8da] focus:border-[#008c44] outline-none bg-white text-sm"
+            >
+              <option value="">Select time zone...</option>
+              <option value="ET">Eastern (ET)</option>
+              <option value="CT">Central (CT)</option>
+              <option value="MT">Mountain (MT)</option>
+              <option value="PT">Pacific (PT)</option>
+              <option value="AKT">Alaska (AKT)</option>
+              <option value="HT">Hawaii (HT)</option>
+              <option value="GMT">GMT / UTC</option>
+              <option value="CET">Central European (CET)</option>
+              <option value="IST">India (IST)</option>
+              <option value="JST">Japan (JST)</option>
+              <option value="AEST">Australia Eastern (AEST)</option>
+            </select>
+          </div>
+
+          {/* ARR */}
+          <div className="space-y-2">
+            <label className="mono-label text-[#676c79]">ARR</label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#676c79] text-sm">$</span>
+              <input
+                type="text"
+                value={arr}
+                onChange={(e) => setArr(e.target.value)}
+                placeholder="e.g. 50,000"
+                className="w-full p-3 pl-7 border border-[#d4e8da] focus:border-[#008c44] outline-none text-sm"
+              />
+            </div>
+          </div>
+
+          {/* POC */}
+          <div className="flex items-center gap-3">
+            <div
+              onClick={() => setIsPoc(!isPoc)}
+              className={`w-5 h-5 border flex items-center justify-center transition-colors cursor-pointer ${isPoc ? 'bg-[#008c44] border-[#008c44]' : 'border-[#d4e8da] hover:border-[#008c44]'}`}
+            >
+              {isPoc && <Check size={14} className="text-white" />}
+            </div>
+            <label onClick={() => setIsPoc(!isPoc)} className="mono-label text-[#676c79] cursor-pointer">
+              This is a Proof of Concept (POC)
+            </label>
+          </div>
+
+          <button
+            onClick={handleSubmit}
+            disabled={!canSubmit}
+            className="w-full bg-[#00ff64] text-[#000d05] py-4 font-sans font-bold text-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          >
+            <Plus size={20} /> Confirm Kickoff
+          </button>
+        </div>
+      </motion.div>
+    );
+}
+
 export default function App() {
   const [authState, setAuthState] = useState<'checking' | 'authenticated' | 'unauthenticated'>('checking');
   const [currentUser, setCurrentUser] = useState<{ email: string; name: string; picture: string } | null>(null);
@@ -2111,376 +2491,6 @@ export default function App() {
     </div>
   );
 
-  // --- Side Panels ---
-
-  const BookingPanel = () => {
-    const [customerName, setCustomerName] = useState('');
-    const [aeName, setAeName] = useState('');
-    const [selectedUseCases, setSelectedUseCases] = useState<string[]>([]);
-    const [dealSearch, setDealSearch] = useState('');
-    const [dealDropdownOpen, setDealDropdownOpen] = useState(false);
-    const dealRef = useRef<HTMLDivElement>(null);
-    const [aeSearch, setAeSearch] = useState('');
-    const [aeDropdownOpen, setAeDropdownOpen] = useState(false);
-    const aeRef = useRef<HTMLDivElement>(null);
-    const [notes, setNotes] = useState('');
-    const [timezone, setTimezone] = useState('');
-    const [arr, setArr] = useState('');
-    const [isPoc, setIsPoc] = useState(false);
-
-    const [date1, setDate1] = useState('');
-
-    const derivedWeek1 = date1 ? getWeekString(new Date(date1 + 'T00:00:00')) : bookingWeek;
-    const week1SlotsUsed = kickoffs.filter(k => k.week === derivedWeek1).length;
-    const week1IsFull = week1SlotsUsed >= maxSlots;
-
-    // Count ALL kickoffs per SA across all weeks (includes ones not yet in Asana)
-    const saAllCounts = kickoffs.reduce<Record<string, number>>((acc, k) => {
-      acc[k.saName] = (acc[k.saName] || 0) + 1;
-      return acc;
-    }, {});
-
-    // Auto-assign: lowest utilization SA with fewer than 2 total kickoffs (exclude pod leads and Offsite-only SAs)
-    const assignableSAs = sasSortedByCapacity.filter(sa => !SA_POD_LEADS.has(sa.name) && sa.name !== 'Charles Ellenburg');
-    const autoAssignedSA = assignableSAs.find(sa => (saAllCounts[sa.name] || 0) < 2)?.name
-      || assignableSAs[0]?.name;
-
-    const [sa1, setSa1] = useState(autoAssignedSA);
-
-    // Re-derive SA when date or use case changes (don't override manual picks)
-    const [userPickedSA, setUserPickedSA] = useState(false);
-    useEffect(() => {
-      if (!userPickedSA) {
-        if (selectedUseCases.includes('Offsite')) {
-          setSa1('Charles Ellenburg');
-        } else {
-          const best = assignableSAs.find(sa => (saAllCounts[sa.name] || 0) < 2)?.name
-            || assignableSAs[0]?.name;
-          setSa1(best);
-        }
-      }
-    }, [derivedWeek1, selectedUseCases]);
-
-    const sa1TotalCount = saAllCounts[sa1] || 0;
-    const sa1AtLimit = sa1TotalCount >= 2;
-
-    const today = new Date().toISOString().split('T')[0];
-    const maxDate = new Date(Date.now() + 56 * 86400000).toISOString().split('T')[0];
-
-    const handleSubmit = () => {
-      handleAddKickoff({
-        customerName,
-        aeName,
-        saName: sa1,
-        week: derivedWeek1,
-        status: 'NOT STARTED',
-        notes,
-        eventDate: date1 ? new Date(date1 + 'T00:00:00').toISOString() : undefined,
-        useCaseType: selectedUseCases.length > 0 ? selectedUseCases.join(', ') : undefined,
-        timezone: timezone || undefined,
-        arr: arr || undefined,
-        isPoc,
-      });
-    };
-
-    const filteredDeals = hubspotDeals.filter((d: HubSpotDeal) =>
-      (d.name || '').toLowerCase().includes(dealSearch.toLowerCase())
-    );
-
-    const filteredAEs = hubspotAEs.filter((a: HubSpotAE) =>
-      (a.name || '').toLowerCase().includes(aeSearch.toLowerCase()) &&
-      !excludedPeople.includes(a.name)
-    );
-
-    useEffect(() => {
-      const handler = (e: MouseEvent) => {
-        if (dealRef.current && !dealRef.current.contains(e.target as Node)) {
-          setDealDropdownOpen(false);
-        }
-        if (aeRef.current && !aeRef.current.contains(e.target as Node)) {
-          setAeDropdownOpen(false);
-        }
-      };
-      document.addEventListener('mousedown', handler);
-      return () => document.removeEventListener('mousedown', handler);
-    }, []);
-
-    const canSubmit = customerName && aeName && date1 && selectedUseCases.length > 0 && !week1IsFull && !sa1AtLimit;
-
-    return (
-      <motion.div
-        initial={{ x: '100%' }}
-        animate={{ x: 0 }}
-        exit={{ x: '100%' }}
-        transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-        onClick={(e) => e.stopPropagation()}
-        className="fixed top-0 right-0 h-full w-full sm:w-[420px] bg-white border-l border-[#d4e8da] z-50 shadow-2xl p-6 sm:p-8 overflow-y-auto"
-      >
-        <div className="flex justify-between items-center mb-8">
-          <h2 className="text-3xl font-serif">Book Slot</h2>
-          <button onClick={() => setIsBookingOpen(false)} className="text-[#676c79] hover:text-[#000d05]">
-            <X size={24} />
-          </button>
-        </div>
-
-        <div className="space-y-6">
-          {/* Use Case Type */}
-          <div className="space-y-2">
-            <label className="mono-label text-[#676c79]">Use Case Type</label>
-            <div className="space-y-2">
-              {USE_CASE_TYPES.map(type => {
-                const isSelected = selectedUseCases.includes(type);
-                const isOffsite = type === 'Offsite';
-                const hasOffsite = selectedUseCases.includes('Offsite');
-                const hasNonOffsite = selectedUseCases.some(t => t !== 'Offsite');
-                const isDisabled = (isOffsite && hasNonOffsite) || (!isOffsite && hasOffsite);
-                return (
-                  <label
-                    key={type}
-                    className={`flex items-center gap-3 p-3 border cursor-pointer transition-all ${
-                      isSelected ? 'border-[#008c44] bg-[#f0faf4]' : 'border-[#d4e8da] hover:border-[#008c44]'
-                    } ${isDisabled ? 'opacity-40 cursor-not-allowed' : ''}`}
-                  >
-                    <div
-                      className={`w-5 h-5 border flex items-center justify-center transition-colors ${
-                        isSelected ? 'bg-[#008c44] border-[#008c44]' : 'border-[#d4e8da]'
-                      }`}
-                    >
-                      {isSelected && <Check size={14} className="text-white" />}
-                    </div>
-                    <input
-                      type="checkbox"
-                      className="sr-only"
-                      checked={isSelected}
-                      disabled={isDisabled}
-                      onChange={() => {
-                        if (isDisabled) return;
-                        if (isSelected) {
-                          setSelectedUseCases(prev => prev.filter(t => t !== type));
-                        } else {
-                          if (isOffsite) {
-                            setSelectedUseCases(['Offsite']);
-                          } else {
-                            setSelectedUseCases(prev => [...prev.filter(t => t !== 'Offsite'), type]);
-                          }
-                        }
-                      }}
-                    />
-                    <span className="text-sm font-sans text-[#09090b]">{type}</span>
-                  </label>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <label className="mono-label text-[#676c79]">Customer Name</label>
-            {hubspotDeals.length > 0 ? (
-              <div ref={dealRef} className="relative">
-                <div
-                  onClick={() => setDealDropdownOpen(!dealDropdownOpen)}
-                  className="w-full p-3 border border-[#d4e8da] focus-within:border-[#008c44] cursor-pointer flex items-center justify-between"
-                >
-                  <span className={`text-sm ${customerName ? 'text-[#09090b]' : 'text-[#a5aab6]'}`}>
-                    {customerName || 'Select a deal...'}
-                  </span>
-                  <ChevronRight size={16} className={`text-[#676c79] transition-transform ${dealDropdownOpen ? 'rotate-90' : ''}`} />
-                </div>
-                {dealDropdownOpen && (
-                  <div className="absolute top-full left-0 w-full bg-white border border-[#d4e8da] z-50 shadow-xl mt-1 max-h-72 overflow-hidden flex flex-col">
-                    <div className="p-2 border-b border-[#ecedef]">
-                      <div className="flex items-center gap-2 px-2 py-1.5 bg-[#f8f8f8] border border-[#d4e8da]">
-                        <Search size={14} className="text-[#a5aab6] flex-shrink-0" />
-                        <input
-                          type="text"
-                          value={dealSearch}
-                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDealSearch(e.target.value)}
-                          placeholder="Search deals..."
-                          className="w-full bg-transparent outline-none text-sm"
-                          autoFocus
-                        />
-                      </div>
-                    </div>
-                    <div className="overflow-y-auto max-h-56">
-                      {filteredDeals.length === 0 ? (
-                        <div className="px-4 py-3 text-sm text-[#a5aab6] text-center">No deals found</div>
-                      ) : (
-                        filteredDeals.map((deal: HubSpotDeal) => (
-                          <button
-                            key={deal.id}
-                            onClick={() => {
-                              setCustomerName(deal.name);
-                              if (deal.amount) setArr(deal.amount);
-                              if (deal.aeName) setAeName(deal.aeName);
-                              setDealDropdownOpen(false);
-                              setDealSearch('');
-                            }}
-                            className={`w-full px-4 py-2.5 text-left text-sm hover:bg-[#f0faf4] transition-colors flex items-center justify-between ${customerName === deal.name ? 'bg-[#f0faf4] font-bold' : ''}`}
-                          >
-                            <span className="font-sans">{deal.name}</span>
-                            {deal.amount && (
-                              <span className="text-xs text-[#676c79] ml-2">${Number(deal.amount).toLocaleString()}</span>
-                            )}
-                          </button>
-                        ))
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <input
-                type="text"
-                value={customerName}
-                onChange={(e) => setCustomerName(e.target.value)}
-                placeholder="e.g. Acme Corp"
-                className="w-full p-3 border border-[#d4e8da] focus:border-[#008c44] outline-none"
-              />
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <label className="mono-label text-[#676c79]">AE Name</label>
-            <input
-              type="text"
-              value={aeName}
-              onChange={(e) => setAeName(e.target.value)}
-              placeholder="Enter AE name"
-              className="w-full p-3 border border-[#d4e8da] focus:border-[#008c44] outline-none"
-            />
-          </div>
-
-          {/* SA — auto-assigned but overridable */}
-          <div className="space-y-2">
-            <label className="mono-label text-[#676c79]">SA</label>
-            <select
-              value={sa1}
-              onChange={(e) => { setSa1(e.target.value); setUserPickedSA(true); }}
-              className={`w-full p-3 border outline-none bg-white text-sm font-sans ${sa1AtLimit ? 'border-red-300' : 'border-[#d4e8da] focus:border-[#008c44]'}`}
-            >
-              {sasSortedByCapacity.filter(sa => {
-                if (sa.name === 'Charles Ellenburg') return selectedUseCases.includes('Offsite');
-                return !SA_POD_LEADS.has(sa.name);
-              }).map(sa => {
-                const atLimit = (saAllCounts[sa.name] || 0) >= 2;
-                return (
-                  <option key={sa.name} value={sa.name}>
-                    {sa.name}{atLimit ? ' ⚠️ at limit' : ''}
-                  </option>
-                );
-              })}
-            </select>
-            {sa1AtLimit ? (
-              <p className="text-xs text-red-500 flex items-center gap-1">
-                <AlertCircle size={12} /> {sa1} is at the kickoff limit — pick someone else
-              </p>
-            ) : (
-              <p className="text-xs text-[#008c44] flex items-center gap-1">
-                <CheckCircle2 size={12} /> {userPickedSA ? 'Manually selected' : 'Auto-assigned'}
-              </p>
-            )}
-          </div>
-
-          {/* SA Lead */}
-          <div className="space-y-2">
-            <label className="mono-label text-[#676c79]">SA Lead</label>
-            <div className="w-full p-3 border border-[#d4e8da] bg-[#F8FFFA] text-sm">
-              {getSALead(sa1) ? (
-                <span className="font-sans">{getSALead(sa1)} <span className="text-[#676c79]">({SA_POD_MAP[sa1]?.pod})</span></span>
-              ) : (
-                <span className="text-[#a5aab6] italic">No pod assigned</span>
-              )}
-            </div>
-          </div>
-
-          {/* Kickoff Date */}
-          <div className="space-y-2">
-            <label className="mono-label text-[#676c79]">Kickoff Date</label>
-            <input
-              type="date"
-              value={date1}
-              onChange={(e) => setDate1(e.target.value)}
-              min={today}
-              max={maxDate}
-              className="w-full p-3 border border-[#d4e8da] focus:border-[#008c44] outline-none"
-            />
-            <p className="text-xs text-[#676c79]">Week {derivedWeek1} — {week1SlotsUsed} / {maxSlots} slots used</p>
-          </div>
-
-          <div className="space-y-2">
-            <label className="mono-label text-[#676c79]">Notes</label>
-            <textarea
-              rows={4}
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Any specific requirements..."
-              className="w-full p-3 border border-[#d4e8da] focus:border-[#008c44] outline-none"
-            />
-          </div>
-
-          {/* Time Zone */}
-          <div className="space-y-2">
-            <label className="mono-label text-[#676c79]">Time Zone (Main Contact)</label>
-            <select
-              value={timezone}
-              onChange={(e) => setTimezone(e.target.value)}
-              className="w-full p-3 border border-[#d4e8da] focus:border-[#008c44] outline-none bg-white text-sm"
-            >
-              <option value="">Select time zone...</option>
-              <option value="ET">Eastern (ET)</option>
-              <option value="CT">Central (CT)</option>
-              <option value="MT">Mountain (MT)</option>
-              <option value="PT">Pacific (PT)</option>
-              <option value="AKT">Alaska (AKT)</option>
-              <option value="HT">Hawaii (HT)</option>
-              <option value="GMT">GMT / UTC</option>
-              <option value="CET">Central European (CET)</option>
-              <option value="IST">India (IST)</option>
-              <option value="JST">Japan (JST)</option>
-              <option value="AEST">Australia Eastern (AEST)</option>
-            </select>
-          </div>
-
-          {/* ARR */}
-          <div className="space-y-2">
-            <label className="mono-label text-[#676c79]">ARR</label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#676c79] text-sm">$</span>
-              <input
-                type="text"
-                value={arr}
-                onChange={(e) => setArr(e.target.value)}
-                placeholder="e.g. 50,000"
-                className="w-full p-3 pl-7 border border-[#d4e8da] focus:border-[#008c44] outline-none text-sm"
-              />
-            </div>
-          </div>
-
-          {/* POC */}
-          <div className="flex items-center gap-3">
-            <div
-              onClick={() => setIsPoc(!isPoc)}
-              className={`w-5 h-5 border flex items-center justify-center transition-colors cursor-pointer ${isPoc ? 'bg-[#008c44] border-[#008c44]' : 'border-[#d4e8da] hover:border-[#008c44]'}`}
-            >
-              {isPoc && <Check size={14} className="text-white" />}
-            </div>
-            <label onClick={() => setIsPoc(!isPoc)} className="mono-label text-[#676c79] cursor-pointer">
-              This is a Proof of Concept (POC)
-            </label>
-          </div>
-
-          <button
-            onClick={handleSubmit}
-            disabled={!canSubmit}
-            className="w-full bg-[#00ff64] text-[#000d05] py-4 font-sans font-bold text-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-          >
-            <Plus size={20} /> Confirm Kickoff
-          </button>
-        </div>
-      </motion.div>
-    );
-  };
-
   const detailPanel = (() => {
     if (!selectedKickoff) return null;
 
@@ -3009,7 +3019,17 @@ export default function App() {
               }}
               className="fixed inset-0 bg-black/20 backdrop-blur-[2px] z-40"
             />
-            <BookingPanel />
+            <BookingPanel
+              bookingWeek={bookingWeek}
+              sasSortedByCapacity={sasSortedByCapacity}
+              kickoffs={kickoffs}
+              maxSlots={maxSlots}
+              hubspotDeals={hubspotDeals}
+              hubspotAEs={hubspotAEs}
+              excludedPeople={excludedPeople}
+              handleAddKickoff={handleAddKickoff}
+              setIsBookingOpen={setIsBookingOpen}
+            />
           </>
         )}
         {selectedKickoffId && (
