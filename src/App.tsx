@@ -653,6 +653,7 @@ function BookingPanel({ bookingWeek, sasSortedByCapacity, kickoffs, maxSlots, hu
     const [isPoc, setIsPoc] = useState(false);
 
     const [date1, setDate1] = useState('');
+    const [dateWeekendError, setDateWeekendError] = useState(false);
 
     const derivedWeek1 = date1 ? getWeekString(new Date(date1 + 'T00:00:00')) : bookingWeek;
     const week1SlotsUsed = kickoffs.filter(k => k.week === derivedWeek1).length;
@@ -922,13 +923,22 @@ function BookingPanel({ bookingWeek, sasSortedByCapacity, kickoffs, maxSlots, hu
               value={date1}
               onChange={(e) => {
                 const day = new Date(e.target.value + 'T00:00:00').getDay();
-                if (day !== 0 && day !== 6) setDate1(e.target.value);
+                if (day === 0 || day === 6) {
+                  setDateWeekendError(true);
+                } else {
+                  setDateWeekendError(false);
+                  setDate1(e.target.value);
+                }
               }}
               min={today}
               max={maxDate}
-              className="w-full p-3 border border-[#d4e8da] focus:border-[#008c44] outline-none"
+              className={`w-full p-3 border outline-none ${dateWeekendError ? 'border-red-300' : 'border-[#d4e8da] focus:border-[#008c44]'}`}
             />
-            <p className="text-xs text-[#676c79]">Week {derivedWeek1} — {week1SlotsUsed} / {maxSlots} slots used · weekdays only</p>
+            {dateWeekendError ? (
+              <p className="text-xs text-red-500 flex items-center gap-1"><AlertCircle size={12} /> Weekends are not available — please select a weekday</p>
+            ) : (
+              <p className="text-xs text-[#676c79]">Week {derivedWeek1} — {week1SlotsUsed} / {maxSlots} slots used · weekdays only</p>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -1457,7 +1467,7 @@ export default function App() {
     setAgentForm({
       aeName: selectedKickoff.aeName || '',
       seName: selectedKickoff.saName || '',
-      csLead: (selectedKickoff.saName && SA_POD_MAP[selectedKickoff.saName]?.lead) || '',
+      csLead: (selectedKickoff.saName && saInfo(selectedKickoff.saName)?.lead) || '',
       kickoffDate: selectedKickoff.eventDate
         ? new Date(selectedKickoff.eventDate).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })
         : '',
@@ -1599,10 +1609,10 @@ export default function App() {
         customerName: kickoff.customerName,
         aeName: kickoff.aeName,
         saName: kickoff.saName,
-        saLeadName: getSALead(kickoff.saName) || '',
+        saLeadName: saInfo(kickoff.saName)?.lead || '',
         kickoffDate: kickoff.eventDate,
         useCase: kickoff.useCaseType,
-        pod: SA_POD_MAP[kickoff.saName]?.pod || '',
+        pod: saInfo(kickoff.saName)?.pod || '',
       }),
     })
       .then(r => r.json())
@@ -1616,7 +1626,7 @@ export default function App() {
   };
 
   const triggerScheduleInternal = (kickoff: Kickoff) => {
-    const saLead = getSALead(kickoff.saName) || '';
+    const saLead = saInfo(kickoff.saName)?.lead || '';
     fetch('/api/trigger-deck?action=schedule-internal', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -2084,12 +2094,12 @@ export default function App() {
   const [expandedSA, setExpandedSA] = useState<string | null>(null);
   const [expandedCustomers, setExpandedCustomers] = useState<Set<string>>(new Set());
 
-  const pods = [...new Set(Object.values(SA_POD_MAP).map(v => v.pod))];
+  const pods = [...new Set(sas.map(sa => sa.pod).filter(Boolean))];
 
   const capacityFilteredSAs = (capacityPodFilter === 'all'
     ? sas
-    : sas.filter(sa => SA_POD_MAP[sa.name]?.pod === capacityPodFilter)
-  ).filter(sa => !SA_POD_LEADS.has(sa.name));
+    : sas.filter(sa => sa.pod === capacityPodFilter)
+  ).filter(sa => !sa.isLead);
 
   const capacitySorted = [...capacityFilteredSAs].sort((a, b) => b.utilizationPct - a.utilizationPct);
 
@@ -2234,7 +2244,7 @@ export default function App() {
       {/* SA Rows */}
       <div className="space-y-0 border border-[#d4e8da]">
         {capacitySorted.map(sa => {
-          const pod = SA_POD_MAP[sa.name]?.pod;
+          const pod = sa.pod;
           const podShort = pod ? pod.replace("'s Pod", '').replace('Pod ', '').toUpperCase() : '';
           const ucCount = sa.useCases.length;
           const isExpanded = expandedSA === sa.name;
@@ -2519,18 +2529,18 @@ export default function App() {
                 onChange={(e) => handleUpdateKickoff(selectedKickoff.id, { saName: e.target.value })}
                 className="w-full p-2 border border-[#d4e8da] focus:border-[#008c44] outline-none bg-white text-sm font-sans"
               >
-                {Object.keys(SA_POD_MAP).filter(name => !SA_POD_LEADS.has(name)).map(name => (
+                {sas.filter(sa => !sa.isLead && sa.name !== 'Charles Ellenburg').map(({ name }) => (
                   <option key={name} value={name}>{name}</option>
                 ))}
               </select>
             </div>
             <div className="space-y-1">
               <label className="mono-label text-[#a5aab6]">SA LEAD</label>
-              <p className="text-sm font-medium">{getSALead(selectedKickoff.saName) || <span className="text-[#a5aab6] italic">—</span>}</p>
+              <p className="text-sm font-medium">{saInfo(selectedKickoff.saName)?.lead || <span className="text-[#a5aab6] italic">—</span>}</p>
             </div>
             <div className="space-y-1">
               <label className="mono-label text-[#a5aab6]">POD</label>
-              <p className="text-sm font-medium">{SA_POD_MAP[selectedKickoff.saName]?.pod || <span className="text-[#a5aab6] italic">—</span>}</p>
+              <p className="text-sm font-medium">{saInfo(selectedKickoff.saName)?.pod || <span className="text-[#a5aab6] italic">—</span>}</p>
             </div>
             <div className="space-y-1">
               <label className="mono-label text-[#a5aab6]">TIME ZONE</label>
