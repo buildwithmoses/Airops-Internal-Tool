@@ -1021,6 +1021,7 @@ export default function App() {
   const [view, setView] = useState<'schedule' | 'all' | 'capacity' | 'settings' | 'booking'>('schedule');
   const [bookingKickoffId, setBookingKickoffId] = useState<string | null>(null);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [kickoffs, setKickoffs] = useState<Kickoff[]>(SEED_KICKOFFS);
   const [sas, setSas] = useState<SA[]>(INITIAL_SAS);
   const [saLoadingState, setSaLoadingState] = useState<'idle' | 'loading' | 'loaded' | 'error'>('idle');
@@ -2921,69 +2922,110 @@ export default function App() {
       </AnimatePresence>
 
       {/* Desktop Sidebar */}
-      <aside className="hidden md:flex w-[220px] bg-[#F8FFFA] border-r border-[#d4e8da] flex-col fixed h-full">
-        <div className="p-6 mb-4">
-          <img
-            src="https://mms.businesswire.com/media/20251110823725/en/2637492/4/AirOps_logo.jpg"
-            alt="AirOps Logo"
-            className="w-[120px] h-auto mix-blend-multiply"
-            referrerPolicy="no-referrer"
-          />
-          <div className="mt-8 mono-label text-[#676c79]">Kickoff Hub</div>
+      <aside
+        className="hidden md:flex bg-[#F8FFFA] border-r border-[#d4e8da] flex-col fixed h-full transition-all duration-300 overflow-hidden"
+        style={{ width: sidebarCollapsed ? '60px' : '220px' }}
+      >
+        {/* Collapse toggle button */}
+        <button
+          onClick={() => setSidebarCollapsed(c => !c)}
+          className="absolute -right-3 top-7 z-10 w-6 h-6 bg-white border border-[#d4e8da] rounded-full flex items-center justify-center text-[#676c79] hover:text-[#000d05] shadow-sm transition-colors"
+          title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        >
+          {sidebarCollapsed ? <ChevronRight size={12} /> : <ChevronLeft size={12} />}
+        </button>
+
+        <div className={`mb-4 transition-all duration-300 ${sidebarCollapsed ? 'p-3 pt-6' : 'p-6'}`}>
+          {!sidebarCollapsed && (
+            <>
+              <img
+                src="https://mms.businesswire.com/media/20251110823725/en/2637492/4/AirOps_logo.jpg"
+                alt="AirOps Logo"
+                className="w-[120px] h-auto mix-blend-multiply"
+                referrerPolicy="no-referrer"
+              />
+              <div className="mt-8 mono-label text-[#676c79]">Kickoff Hub</div>
+            </>
+          )}
+          {sidebarCollapsed && (
+            <div className="w-8 h-8 bg-[#000d05] text-white flex items-center justify-center text-xs font-bold rounded mx-auto mt-2">KH</div>
+          )}
         </div>
 
         <nav className="flex-1">
           <button
             onClick={() => setView('schedule')}
-            className={`w-full flex items-center gap-3 px-6 py-3 text-sm font-sans transition-all ${view === 'schedule' ? 'border-l-[3px] border-[#008c44] bg-[#f0faf4] text-[#000d05]' : 'text-[#676c79] hover:bg-[#f0faf4] hover:text-[#000d05]'}`}
+            title={sidebarCollapsed ? 'Weekly Schedule' : undefined}
+            className={`w-full flex items-center transition-all ${sidebarCollapsed ? 'justify-center px-0 py-3' : 'gap-3 px-6 py-3'} text-sm font-sans ${view === 'schedule' ? 'border-l-[3px] border-[#008c44] bg-[#f0faf4] text-[#000d05]' : 'text-[#676c79] hover:bg-[#f0faf4] hover:text-[#000d05]'}`}
           >
-            <Calendar size={18} /> Weekly Schedule
+            <Calendar size={18} />
+            {!sidebarCollapsed && <span>Weekly Schedule</span>}
           </button>
           <button
             onClick={() => setView('all')}
-            className={`w-full flex items-center gap-3 px-6 py-3 text-sm font-sans transition-all ${view === 'all' ? 'border-l-[3px] border-[#008c44] bg-[#f0faf4] text-[#000d05]' : 'text-[#676c79] hover:bg-[#f0faf4] hover:text-[#000d05]'}`}
+            title={sidebarCollapsed ? 'All Kickoffs' : undefined}
+            className={`w-full flex items-center transition-all ${sidebarCollapsed ? 'justify-center px-0 py-3' : 'gap-3 px-6 py-3'} text-sm font-sans ${view === 'all' ? 'border-l-[3px] border-[#008c44] bg-[#f0faf4] text-[#000d05]' : 'text-[#676c79] hover:bg-[#f0faf4] hover:text-[#000d05]'}`}
           >
-            <List size={18} /> All Kickoffs
+            <List size={18} />
+            {!sidebarCollapsed && <span>All Kickoffs</span>}
           </button>
           <button
             onClick={() => setView('capacity')}
-            className={`w-full flex items-center gap-3 px-6 py-3 text-sm font-sans transition-all ${view === 'capacity' ? 'border-l-[3px] border-[#008c44] bg-[#f0faf4] text-[#000d05]' : 'text-[#676c79] hover:bg-[#f0faf4] hover:text-[#000d05]'}`}
+            title={sidebarCollapsed ? 'SA Capacity' : undefined}
+            className={`w-full flex items-center transition-all ${sidebarCollapsed ? 'justify-center px-0 py-3' : 'gap-3 px-6 py-3'} text-sm font-sans ${view === 'capacity' ? 'border-l-[3px] border-[#008c44] bg-[#f0faf4] text-[#000d05]' : 'text-[#676c79] hover:bg-[#f0faf4] hover:text-[#000d05]'}`}
           >
-            <Users size={18} /> SA Capacity
+            <Users size={18} />
+            {!sidebarCollapsed && <span>SA Capacity</span>}
           </button>
           <button
             onClick={() => setView('settings')}
-            className={`w-full flex items-center gap-3 px-6 py-3 text-sm font-sans transition-all ${view === 'settings' ? 'border-l-[3px] border-[#008c44] bg-[#f0faf4] text-[#000d05]' : 'text-[#676c79] hover:bg-[#f0faf4] hover:text-[#000d05]'}`}
+            title={sidebarCollapsed ? 'Settings' : undefined}
+            className={`w-full flex items-center transition-all ${sidebarCollapsed ? 'justify-center px-0 py-3' : 'gap-3 px-6 py-3'} text-sm font-sans ${view === 'settings' ? 'border-l-[3px] border-[#008c44] bg-[#f0faf4] text-[#000d05]' : 'text-[#676c79] hover:bg-[#f0faf4] hover:text-[#000d05]'}`}
           >
-            <SettingsIcon size={18} /> Settings
+            <SettingsIcon size={18} />
+            {!sidebarCollapsed && <span>Settings</span>}
           </button>
         </nav>
 
-        <div className="p-6 border-t border-[#d4e8da]">
-          <div className="flex items-center gap-3">
-            {currentUser?.picture ? (
-              <img src={currentUser.picture} alt="" className="w-8 h-8 rounded-full" />
-            ) : (
-              <div className="w-8 h-8 bg-[#000d05] text-white flex items-center justify-center text-xs font-bold rounded-full">
-                {currentUser?.name?.split(' ').map(n => n[0]).join('').slice(0, 2) || '?'}
-              </div>
-            )}
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-bold truncate">{currentUser?.name || 'User'}</p>
-              <p className="text-[10px] text-[#676c79] truncate">{currentUser?.email || ''}</p>
+        <div className={`border-t border-[#d4e8da] transition-all duration-300 ${sidebarCollapsed ? 'p-3' : 'p-6'}`}>
+          {sidebarCollapsed ? (
+            <div className="flex justify-center">
+              {currentUser?.picture ? (
+                <img src={currentUser.picture} alt="" className="w-8 h-8 rounded-full" />
+              ) : (
+                <div className="w-8 h-8 bg-[#000d05] text-white flex items-center justify-center text-xs font-bold rounded-full">
+                  {currentUser?.name?.split(' ').map(n => n[0]).join('').slice(0, 2) || '?'}
+                </div>
+              )}
             </div>
-          </div>
-          <a
-            href="/api/logout"
-            className="flex items-center gap-2 mt-3 px-3 py-1.5 text-xs font-sans text-[#676c79] hover:text-[#000d05] hover:bg-[#f0faf4] transition-colors w-full"
-          >
-            <LogOut size={14} /> Sign out
-          </a>
+          ) : (
+            <>
+              <div className="flex items-center gap-3">
+                {currentUser?.picture ? (
+                  <img src={currentUser.picture} alt="" className="w-8 h-8 rounded-full" />
+                ) : (
+                  <div className="w-8 h-8 bg-[#000d05] text-white flex items-center justify-center text-xs font-bold rounded-full">
+                    {currentUser?.name?.split(' ').map(n => n[0]).join('').slice(0, 2) || '?'}
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-bold truncate">{currentUser?.name || 'User'}</p>
+                  <p className="text-[10px] text-[#676c79] truncate">{currentUser?.email || ''}</p>
+                </div>
+              </div>
+              <a
+                href="/api/logout"
+                className="flex items-center gap-2 mt-3 px-3 py-1.5 text-xs font-sans text-[#676c79] hover:text-[#000d05] hover:bg-[#f0faf4] transition-colors w-full"
+              >
+                <LogOut size={14} /> Sign out
+              </a>
+            </>
+          )}
         </div>
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 md:ml-[220px] p-4 pt-16 md:pt-12 md:p-12">
+      <main className={`flex-1 p-4 pt-16 md:pt-12 md:p-12 transition-all duration-300 ${sidebarCollapsed ? 'md:ml-[60px]' : 'md:ml-[220px]'}`}>
         {view === 'schedule' && <WeeklyScheduleView />}
         {view === 'all' && <AllKickoffsView />}
         {view === 'capacity' && (saLoadingState === 'loading' ? <SACapacityLoadingSkeleton /> : <SACapacityView />)}
